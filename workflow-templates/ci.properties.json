@@ -1,7 +1,7 @@
 {
     "name": "Icario Organization Workflow",
     "description": "Icario Organization CI workflow template.",
-    "iconName": "Icario_OMark_Ocean_RGB.png",
+    "iconName": "Icario_OMark_Ocean_RGB.svg",
     "categories": [
         "Go"
     ],

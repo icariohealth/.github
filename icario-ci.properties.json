@@ -1,0 +1,13 @@
+{
+    "name": "Icario Organization Workflow",
+    "description": "Icario Organization CI workflow template.",
+    "iconName": "example-icon",
+    "categories": [
+        "Go"
+    ],
+    "filePatterns": [
+        "package.json$",
+        "^Dockerfile",
+        ".*\\.md$"
+    ]
+}

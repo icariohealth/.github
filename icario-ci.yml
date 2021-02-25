@@ -1,0 +1,457 @@
+---
+name: CI
+on:
+  pull_request:
+    branches: [ $default-branch ]
+    paths-ignore:
+      - 'VERSION.TXT'
+      - '**.md'
+
+
+jobs:
+  Build_Docker_Image:
+    timeout-minutes: 10
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACTORY_CREDENTIALS: ${{ secrets.ARTIFACTORY_CREDENTIALS }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Docker build
+        uses: whoan/docker-build-with-cache-action@v5.0.1
+        with:
+          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          registry: '822373129316.dkr.ecr.us-east-1.amazonaws.com'
+          image_name: novu/ci-cache/irisci
+          image_tag: ${{ github.sha }}
+          build_extra_args: "--compress=true --build-arg=SKIP_TRANSLATIONS=true --build-arg=PRECOMPILE_ASSETS=0 --build-arg=ARTIFACTORY_CREDENTIALS=${{ secrets.ARTIFACTORY_CREDENTIALS }}"
+
+  Run_Rspec_Tests:
+    timeout-minutes: 10
+    name: Run Rspec Tests
+    runs-on: ubuntu-latest
+    needs: Build_Docker_Image
+    strategy:
+      matrix:
+        ruby: [ '2.7.2' ]
+        # Used for Knapsack Pro
+        # Set N number of parallel jobs you want to run tests on.
+        # Use higher number if you have slow tests to split them on more parallel jobs.
+        # Remember to update ci_node_index below to 0..N-1
+        ci_node_total: [6]
+        # set N-1 indexes for parallel jobs
+        # When you run 2 parallel jobs then first job will have index 0,
+        # the second job will have index 1 etc
+        ci_node_index: [0, 1, 2, 3, 4, 5]
+      fail-fast: false
+    env:
+      ARTIFACTORY_CREDENTIALS: ${{ secrets.ARTIFACTORY_CREDENTIALS }}
+      KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC: ${{ secrets.KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC }}
+      KNAPSACK_PRO_TEST_SUITE_TOKEN_CUCUMBER: ${{ secrets.KNAPSACK_PRO_TEST_SUITE_TOKEN_CUCUMBER }}
+      KNAPSACK_PRO_CI_NODE_TOTAL: ${{ matrix.ci_node_total }}
+      KNAPSACK_PRO_CI_NODE_INDEX: ${{ matrix.ci_node_index }}
+      KNAPSACK_PRO_BRANCH: ${{ github.ref }}
+      KNAPSACK_PRO_COMMIT_HASH: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1.5.4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pull Docker Image
+        run: |
+          docker pull 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }}
+          docker image tag 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }} irisci
+
+      - name: Database setup
+        run: |
+          echo Setting up Database...
+          mkdir -p ~/novu-data/ssl
+          sudo openssl req -new -text -passout pass:abcd -subj /CN=localhost -keyout ~/novu-data/ssl/privkey.pem -out ~/novu-data/ssl/server.req
+          sudo openssl rsa -in ~/novu-data/ssl/privkey.pem -passin pass:abcd -out ~/novu-data/ssl/server.key
+          sudo openssl req -x509 -in ~/novu-data/ssl/server.req -text -key ~/novu-data/ssl/server.key -out ~/novu-data/ssl/server.crt
+          sudo chmod og-rwx ~/novu-data/ssl/server.key
+          sudo chown 999 ~/novu-data/ssl/*
+
+          echo Start docker containers
+          docker-compose -f docker-compose.ci.yml up -d
+
+          echo Create and migrate test DB...
+          docker-compose -f docker-compose.ci.yml run --rm -e RAILS_ENV=test app bundle exec rails db:create db:schema:load
+
+      - name: Allow writing to test-results, coverage, and public volume
+        run: |
+          sudo chmod 777 tmp/test-results
+          sudo chmod 777 coverage
+          sudo chmod 777 public
+
+      - name: Run rspec tests
+        run: |
+          docker-compose -f docker-compose.ci.yml exec -T app bin/rake "knapsack_pro:queue:rspec[ \
+          --format progress \
+          --format RspecJunitFormatter \
+          --out /opt/iris/tmp/test-results/rspec/results.xml]"
+
+      - name: Copy Coverage Results
+        run: |
+          mkdir coverage_results
+          cp -R coverage/.resultset.json coverage_results/.resultset-${{ matrix.ci_node_index }}.json
+
+      - name: Cache Coverage Results
+        uses: actions/upload-artifact@v1
+        with:
+          name: coverage_results
+          path: ./coverage_results
+
+      # collect reports
+      - name: Cache Test Results
+        uses: actions/upload-artifact@v1
+        with:
+          name: test-results
+          path: ./tmp/test-results
+
+
+  Run_Cucumber_Tests:
+    timeout-minutes: 10
+    name: Run Cucumber Tests
+    runs-on: ubuntu-latest
+    needs: Build_Docker_Image
+    strategy:
+      matrix:
+        ruby: [ '2.7.2' ]
+        # Used for Knapsack Pro
+        # Set N number of parallel jobs you want to run tests on.
+        # Use higher number if you have slow tests to split them on more parallel jobs.
+        # Remember to update ci_node_index below to 0..N-1
+        ci_node_total: [ 15 ]
+        # set N-1 indexes for parallel jobs
+        # When you run 2 parallel jobs then first job will have index 0,
+        # the second job will have index 1 etc
+        ci_node_index: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ]
+      fail-fast: false
+    env:
+      ARTIFACTORY_CREDENTIALS: ${{ secrets.ARTIFACTORY_CREDENTIALS }}
+      ASSERTTHAT_ACCESS_KEY: ${{ secrets.ASSERTTHAT_ACCESS_KEY }}
+      ASSERTTHAT_SECRET_KEY: ${{ secrets.ASSERTTHAT_SECRET_KEY }}
+      ASSERTTHAT_PROJECT_ID: ${{ secrets.ASSERTTHAT_PROJECT_ID }}
+      KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC: ${{ secrets.KNAPSACK_PRO_TEST_SUITE_TOKEN_RSPEC }}
+      KNAPSACK_PRO_TEST_SUITE_TOKEN_CUCUMBER: ${{ secrets.KNAPSACK_PRO_TEST_SUITE_TOKEN_CUCUMBER }}
+      KNAPSACK_PRO_CI_NODE_TOTAL: ${{ matrix.ci_node_total }}
+      KNAPSACK_PRO_CI_NODE_INDEX: ${{ matrix.ci_node_index }}
+      KNAPSACK_PRO_BRANCH: ${{ github.ref }}
+      KNAPSACK_PRO_COMMIT_HASH: ${{ github.sha }}
+      KNAPSACK_PRO_FIXED_QUEUE_SPLIT: true
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1.5.4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pull Docker Image
+        run: |
+          docker pull 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }}
+          docker image tag 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }} irisci
+
+      - name: Database setup
+        run: |
+          echo Setting up Database...
+          mkdir -p ~/novu-data/ssl
+          sudo openssl req -new -text -passout pass:abcd -subj /CN=localhost -keyout ~/novu-data/ssl/privkey.pem -out ~/novu-data/ssl/server.req
+          sudo openssl rsa -in ~/novu-data/ssl/privkey.pem -passin pass:abcd -out ~/novu-data/ssl/server.key
+          sudo openssl req -x509 -in ~/novu-data/ssl/server.req -text -key ~/novu-data/ssl/server.key -out ~/novu-data/ssl/server.crt
+          sudo chmod og-rwx ~/novu-data/ssl/server.key
+          sudo chown 999 ~/novu-data/ssl/*
+
+          echo Start docker containers
+          docker-compose -f docker-compose.ci.yml up -d
+
+          echo Create and migrate test DB...
+          docker-compose -f docker-compose.ci.yml run --rm -e RAILS_ENV=test app bundle exec rails db:create db:schema:load
+
+      - name: Check for missing indices
+        run: |
+          docker-compose -f docker-compose.ci.yml run --rm -e RAILS_ENV=test app rails db:generate_missing_indexes
+
+      - name: Allow writing to test-results, coverage, and public volume
+        run: |
+          sudo chmod 777 tmp/test-results
+          sudo chmod 777 coverage
+          sudo chmod 777 public
+          sudo chmod 777 features
+
+      - name: Run Cucumber tests
+        run: |
+          # Turn this on when feature files are removed from the repository
+          # docker-compose -f docker-compose.ci.yml run --rm -e RAILS_ENV=test app assertthat-bdd-features -a $ASSERTTHAT_ACCESS_KEY -s $ASSERTTHAT_SECRET_KEY -p $ASSERTTHAT_PROJECT_ID 10200 -m automated -t "@iris and @ci"
+
+          docker-compose -f docker-compose.ci.yml run --rm -e RAILS_ENV=test app bin/rake "knapsack_pro:queue:cucumber[ \
+          --format progress \
+          --format junit \
+          --out /opt/iris/tmp/test-results/cucumber/results.xml]"
+
+      - name: Copy Coverage Results
+        run: |
+          mkdir coverage_results
+          cp -R coverage/.resultset.json coverage_results/.resultset-cucumber-${{ matrix.ci_node_index }}.json
+
+      - name: Cache Coverage Results
+        uses: actions/upload-artifact@v1
+        with:
+          name: coverage_results
+          path: ./coverage_results
+
+      # collect reports
+      - name: Cache Test Results
+        uses: actions/upload-artifact@v1
+        with:
+          name: test-results
+          path: ./tmp/test-results
+
+  Rspec_Code_Coverage:
+    timeout-minutes: 10
+    name: Store Code Coverage
+    needs: [Run_Rspec_Tests, Run_Cucumber_Tests]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby: [ '2.7.2' ]
+    env:
+      ARTIFACTORY_CREDENTIALS: ${{ secrets.ARTIFACTORY_CREDENTIALS }}
+      MIN_COVERAGE: '95.8'
+      S3_BUCKET: 'novu-us-east-1-internal-assets'
+      S3_BUCKET_PATH: 'releases/iris/unit_build'
+      working_directory: '/opt/iris'  # dir structure must match that of the docker container
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+
+      - name: Retrieve Coverage Results from Cache
+        uses: actions/download-artifact@v1
+        with:
+          name: coverage_results
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1.5.4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install and run ci gem
+        run: |
+          sudo mkdir /opt/irisci
+          cp -R . /opt/iris
+          cd /opt/iris
+          gem install novu-ci-automation --source https://${ARTIFACTORY_CREDENTIALS}@novullc.jfrog.io/novullc/api/gems/dev-gems-release-virtual
+          merge_and_upload_coverage
+
+      - name: Store Merged Coverage Results Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: merged_coverage_results
+          path: /opt/iris/coverage
+
+      - name: Raise coverage error if coverage below MIN_COVERAGE
+        run: |
+          cd /opt/iris
+          raise_coverage_error
+
+  # This rake task requires a built docker image and the db to be running.
+  # Immigrant:
+  #   name: Foreign Key Check
+  #   runs-on: ubuntu-latest
+  #   needs: Build_Docker_Image
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #     - uses: ruby/setup-ruby@v1
+  #       with:
+  #         ruby-version: '2.6.5'
+
+  #     - name: Configure AWS Credentials
+  #       uses: aws-actions/configure-aws-credentials@v1.5.4
+  #       with:
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #         aws-region: ${{ secrets.AWS_REGION }}
+
+  #     - name: Login to Amazon ECR
+  #       id: login-ecr
+  #       uses: aws-actions/amazon-ecr-login@v1
+
+  #     - name: Pull Docker Image
+  #       run: |
+  #         docker pull 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }}
+  #         docker image tag 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }} irisci
+
+  #     - name: Setup novu-data DB SSL cert
+  #       run: |
+  #         mkdir -p ~/novu-data/ssl
+  #         sudo openssl req -new -text -passout pass:abcd -subj /CN=localhost -keyout ~/novu-data/ssl/privkey.pem -out ~/novu-data/ssl/server.req
+  #         sudo openssl rsa -in ~/novu-data/ssl/privkey.pem -passin pass:abcd -out ~/novu-data/ssl/server.key
+  #         sudo openssl req -x509 -in ~/novu-data/ssl/server.req -text -key ~/novu-data/ssl/server.key -out ~/novu-data/ssl/server.crt
+  #         sudo chmod 640 ~/novu-data/ssl/server.key
+  #         sudo chgrp 70 ~/novu-data/ssl/* # This is the alpine pg uid
+
+  #     - name: Database setup
+  #       run: |
+  #         docker-compose -f docker-compose.ci.yml run --rm app bin/rake db:create db:migrate
+
+  #     - name: Foreign key check
+  #       run: |
+  #         docker-compose -f docker-compose.ci.yml run --rm app bin/rake immigrant:check_keys
+
+  # Linters
+  Brakeman:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Brakeman
+        uses: devmasx/brakeman-linter-action@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        with:
+          config_file: .brakeman.yml
+
+  # Commenting out for now until we decide if we want to use
+  #   Fixme:
+  #     runs-on: ubuntu-latest
+  #     steps:
+  #       - uses: actions/checkout@v2
+  #       - name: FixMe Check
+  #         uses: bbugh/action-fixme-check@master  # or @ the latest release
+
+  Hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: burdzwastaken/hadolint-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HADOLINT_ACTION_DOCKERFILE_FOLDER: .
+
+  Markdownlint:
+    name: Markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: nosborn/github-action-markdown-cli@v1.1.1
+        with:
+          files: .
+          ignore_files: "{*.md,{client,lib/tasks/site_documents}/{**/*,*}}"
+
+  Reek:
+    name: Reek
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: reek
+        uses: reviewdog/action-reek@v1
+        with:
+          github_token: ${{secrets.GITHUB_TOKEN}}
+          reporter: github-pr-review  # Default is github-pr-check
+
+  # This is handrolled for now, potentially use https://github.com/andrewmcodes/rubocop-linter-action instead.
+  Rubocop:
+    name: Rubocop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          git fetch --no-tags --prune --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.6.5'
+      - name: Rubocop
+        run: |
+          gem install rubocop -v 0.82.0
+          gem install rubocop-rails -v 2.5.2
+
+          git diff origin/develop --name-only --diff-filter=AM | xargs rubocop --parallel --fail-level convention
+
+  Stylelint:
+    name: Stylelint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: reviewdog/action-stylelint@v1
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review  # Change reporter.
+          stylelint_input: '**/*.css'
+
+  Yamllint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ibiqlik/action-yamllint@master
+        with:
+          config_file: .yamllint
+
+  # Security Scans
+  Twistlock_Scan:
+    timeout-minutes: 10
+    name: Twistlock (Non-Blocking) Build and Scan for Vulnerabilities and Compliance
+    needs: Build_Docker_Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1.5.4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Pull Docker Image
+        run: |
+          docker pull 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }}
+          docker image tag 822373129316.dkr.ecr.us-east-1.amazonaws.com/novu/ci-cache/irisci:${{ github.sha }} irisci:${{ github.sha }}
+
+      - name: Download TwistCli
+        run: |
+          curl -k -u ${{ secrets.TWISTLOCK_KEY_ID }}:${{ secrets.TWISTLOCK_KEY }} --output ./twistcli https://us-east1.cloud.twistlock.com/us-1-111575341/api/v1/util/twistcli
+          sudo chmod a+x ./twistcli
+
+      - name: Scan the image
+        run: |
+          # Run the scan with twistcli
+          # pushing the results to the console.
+          # --details returns all vulnerabilities & compliance issues rather than just summaries.
+          # -address points to our console
+          # -u and -p provide credentials for the console.  These creds only need the CI User role.
+          # Finally, we provide the name of the image we built with 'docker build', above.
+          ./twistcli images scan --details -address https://us-east1.cloud.twistlock.com/us-1-111575341 -u ${{ secrets.TWISTLOCK_KEY_ID }} -p ${{ secrets.TWISTLOCK_KEY }} irisci:${{ github.sha }}

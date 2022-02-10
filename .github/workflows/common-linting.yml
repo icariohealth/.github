@@ -1,0 +1,43 @@
+# Runs common linting that will be required in most repositories
+---
+name: CommonLinting
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    secrets:
+      CI_TOKEN:
+        required: true
+
+jobs:
+  Yamllint:
+    timeout-minutes: 10
+    name: Yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Checkout GitHub Actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: novu/github-actions
+          token: ${{ secrets.CI_TOKEN }}
+          path: .github/actions
+          ref: main
+
+      # yamllint disable rule:line-length
+      - name: Run yamllint
+        uses: ./.github/actions/yamllint
+
+  Markdownlint:
+    timeout-minutes: 10
+    name: Markdownlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run markdownlint-cli
+        uses: nosborn/github-action-markdown-cli@v3.0.1
+        with:
+          files: '.'
+          config_file: '.markdownlint.yml'

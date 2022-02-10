@@ -1,0 +1,11 @@
+---
+name: Ci
+on:  # yamllint disable-line rule:truthy
+  push:
+  workflow_dispatch:
+
+jobs:
+  ApplyTemplate:
+    uses: icariohealth/.github/.github/workflows/common-linting.yml@main
+    secrets:
+      CI_TOKEN: '${{ secrets.NOVU_CI_TOKEN }}'

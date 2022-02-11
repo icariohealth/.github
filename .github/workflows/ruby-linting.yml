@@ -12,7 +12,7 @@ on:  # yamllint disable-line rule:truthy
     secrets:
       artifactory_credentials:
         required: true
-      github_token:
+      reek_github_token:
         required: true
 
 jobs:
@@ -49,5 +49,5 @@ jobs:
       - name: reek
         uses: reviewdog/action-reek@v1.6.0
         with:
-          github_token: ${{secrets.github_token}}
+          github_token: ${{secrets.reek_github_token}}
           reporter: github-pr-review  # Default is github-pr-check

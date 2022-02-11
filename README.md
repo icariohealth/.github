@@ -54,7 +54,7 @@ Inputs & Secrets:
 ```yaml
   ApplyCfnLinting:
     uses: icariohealth/.github/.github/workflows/cfn-linting.yml@main
-    inputs:
+    with:
       cfn_files: '*cfn.yml'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'

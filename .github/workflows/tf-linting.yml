@@ -6,6 +6,7 @@ on:  # yamllint disable-line rule:truthy
     inputs:
       action_ref:
         default: 'main'
+        type: string
         required: false
     secrets:
       ci_token:

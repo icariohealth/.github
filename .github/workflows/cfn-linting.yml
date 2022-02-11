@@ -6,12 +6,15 @@ on:  # yamllint disable-line rule:truthy
     inputs:
       checkov_skips:
         default: CKV_AWS_16,CKV_AWS_17,CKV_AWS_33,CKV_AWS_51,CKV_AWS_68,CKV_AWS_61
+        type: string
         required: false
       cfn_files:
         required: true
+        type: string
         default: '*cfn.yml'
       action_ref:
         default: 'main'
+        type: string
         required: false
     secrets:
       ci_token:

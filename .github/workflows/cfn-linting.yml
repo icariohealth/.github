@@ -9,9 +9,9 @@ on:  # yamllint disable-line rule:truthy
         required: false
       cfn_files:
         required: true
-        default: "*cfn.yml"
+        default: '*cfn.yml'
       action_ref:
-        default: "main"
+        default: 'main'
         required: false
     secrets:
       ci_token:

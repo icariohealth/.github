@@ -5,7 +5,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       action_ref:
-        default: "main"
+        default: 'main'
         required: false
     secrets:
       ci_token:

@@ -1,9 +1,9 @@
 {
-    "name": "Icario Organization Workflow",
-    "description": "Icario Organization CI workflow template.",
+    "name": "Icario Ruby Ci Template",
+    "description": "Icario Ruby CI workflow template.",
     "iconName": "Icario_OMark_Ocean_RGB",
     "categories": [
-        "Go"
+        "Ruby"
     ],
     "filePatterns": [
         "package.json$",

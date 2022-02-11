@@ -1,5 +1,6 @@
+# Rename to just `Ci` after pulling this in.
 ---
-name: CI
+name: IcarioRubyCiTemplate
 on:
   pull_request:
     branches: [ $default-branch ]

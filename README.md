@@ -27,11 +27,35 @@ More information about reusable workflows is available [here](https://docs.githu
 ### common-linting
 
 Runs yaml and markdown linting for your workflow. Add it as a job with the following snippet.
-The `CI_TOKEN` input should be a github token used to clone other repositories
+
+Inputs & Secrets:
+
+- `ci_token` - should be a github token that can be used to clone other repositories
+- `action_ref` - which branch to use when pulling in github actions, defaults to main
 
 ```yaml
   ApplyCommonLinting:
     uses: icariohealth/.github/.github/workflows/common-linting.yml@main
     secrets:
-      CI_TOKEN: '${{ secrets.NOVU_CI_TOKEN }}'
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
+```
+
+### cfn-linting
+
+Runs cfn-lint and checkov for your workflow. Add it as a job with the following snippet.
+
+Inputs & Secrets:
+
+- `ci_token` - should be a github token that can be used to clone other repositories
+- `action_ref` - which branch to use when pulling in github actions, defaults to main
+- `cfn_files` - glob relative to the root of the repository, defaults to `*cfn.yml`
+- `checkov_skips` - comma-separated list of checkov rules to skip
+
+```yaml
+  ApplyCfnLinting:
+    uses: icariohealth/.github/.github/workflows/cfn-linting.yml@main
+    inputs:
+      cfn_files: '*cfn.yml'
+    secrets:
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```

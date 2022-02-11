@@ -59,3 +59,18 @@ Inputs & Secrets:
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```
+
+### tf-linting
+
+Runs several terraform linting tools for your workflow. Add it as a job with the following snippet.
+
+Inputs & Secrets:
+
+- `ci_token` - should be a github token that can be used to clone other repositories
+
+```yaml
+  ApplyTfLinting:
+    uses: icariohealth/.github/.github/workflows/tf-linting.yml@main
+    secrets:
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
+```

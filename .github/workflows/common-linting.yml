@@ -32,6 +32,8 @@ jobs:
       # yamllint disable rule:line-length
       - name: Run yamllint
         uses: ./.github/actions/yamllint
+        with:
+          actions_clone_path: '.github/actions'
 
   Markdownlint:
     timeout-minutes: 10
@@ -41,8 +43,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Checkout GitHub Actions repository
+        uses: actions/checkout@v2
+        with:
+          repository: novu/github-actions
+          token: ${{ secrets.ci_token }}
+          path: .github/actions
+          ref: ${{ inputs.action_ref }}
+
       - name: Run markdownlint-cli
-        uses: nosborn/github-action-markdown-cli@v3.0.1
+        uses: ./.github/actions/markdown-lint
         with:
           files: '.'
+          actions_clone_path: '.github/actions'
           config_file: '.markdownlint.yml'

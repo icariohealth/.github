@@ -5,6 +5,12 @@ on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       checkov_skips:
+        # CKV_AWS_16:Ensure all data stored in the RDS is securely encrypted at rest
+        # CKV_AWS_17:Ensure all data stored in the RDS bucket is not public accessible
+        # CKV_AWS_33:Ensure ECR image scanning on push is enabled
+        # CKV_AWS_51:Ensure ECR Image Tags are immutable
+        # CKV_AWS_61:Ensure IAM role allows only specific principals in account to assume it
+        # CKV_AWS_68:CloudFront Distribution should have WAF enable
         default: CKV_AWS_16,CKV_AWS_17,CKV_AWS_33,CKV_AWS_51,CKV_AWS_68,CKV_AWS_61
         type: string
         required: false
@@ -38,6 +44,9 @@ jobs:
         with:
           args: ${{ inputs.cfn_files }}
 
+  # Checkov performs static analysis of cfn templates
+  # and detects security and compliance misconfigurations.
+  # https://github.com/bridgecrewio/checkov
   Checkov:
     name: Checkov
     runs-on: ubuntu-latest

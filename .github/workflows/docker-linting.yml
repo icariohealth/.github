@@ -1,0 +1,143 @@
+# Runs two docker linters
+---
+name: 'DockerLinting'
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      aws_ecr_account:
+        type: 'string'
+        # One of 'DT', 'WE', 'CR', or ??'Iridium'??
+        default: 'Iridium'
+        required: true
+      dockerfile_folder:
+        type: 'string'
+        default: '.'
+        required: true
+      hado_ignores:
+        type: 'string'
+        default: 'DL3006 DL3008 DL3018'
+        required: false
+      action_ref:
+        type: 'string'
+        default: 'main'
+        required: false
+      ecr_path:
+        type: 'string'
+        required: true
+      docker_image_name:
+        type: 'string'
+        required: true
+      docker_image_tag:
+        type: 'string'
+        required: true
+    secrets:
+      ci_token:
+        required: true
+      twistlock_key_id:
+        required: true
+      twistlock_key:
+        required: true
+
+jobs:
+  Hadolint:
+    name: 'Hadolint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@v2'
+
+      - name: 'Checkout GitHub actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'novu/github-actions'
+          token: '${{ secrets.NOVU_CI_TOKEN }}'
+          path: '.github-actions'
+          ref: '${{ inputs.action_ref }}'
+
+      - name: 'Run Hadolint'
+        uses: './.github-actions/hadolint'
+        env:
+          GITHUB_TOKEN: '${{ secrets.ci_token }}'
+          HADOLINT_ACTION_DOCKERFILE_FOLDER: '${{ inputs.dockerfile_folder }}'
+          HADOLINT_ACTION_IGNORES: '${{ inputs.hado_ignores }}'
+
+  Twistlock_Scan:
+    name: 'Twistlock (Non-Blocking) Build and Scan for Vulnerabilities and Compliance'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@v2'
+
+      - name: 'Configure DT AWS credentials'
+        if: "${{ inputs.aws_ecr_account }} == 'DT'"
+        uses: 'aws-actions/configure-aws-credentials@v1'
+        with:
+          aws-access-key-id: '${{ secrets.DT_TEST_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DT_TEST_SECRET_KEY }}'
+          aws-region: '${{ secrets.DT_TEST_AWS_REGION }}'
+
+      - name: 'Configure CR AWS credentials'
+        if: "${{ inputs.aws_ecr_account }} == 'CR'"
+        uses: 'aws-actions/configure-aws-credentials@v1'
+        with:
+          aws-access-key-id: '${{ secrets.CR_TEST_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.CR_TEST_SECRET_KEY }}'
+          aws-region: '${{ secrets.CR_TEST_AWS_REGION }}'
+
+      - name: 'Configure WE AWS Credentials'
+        if: "${{ inputs.aws_ecr_account }} == 'WE'"
+        uses: 'aws-actions/configure-aws-credentials@v1'
+        with:
+          aws-access-key-id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+          aws-secret-access-key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          aws-region: '${{ secrets.AWS_REGION }}'
+
+      - name: 'Login to Amazon ECR'
+        id: 'login-ecr'
+        uses: 'aws-actions/amazon-ecr-login@v1'
+
+      - name: 'Download TwistCli'
+        run: |
+          TWIST_URL="https://us-east1.cloud.twistlock.com/us-1-111575341/api/v1/util/twistcli"
+          curl -k -u ${{ secrets.TWISTLOCK_KEY_ID }}:${{ secrets.TWISTLOCK_KEY }} --output ./twistcli "$TWIST_URL"
+          sudo chmod a+x ./twistcli
+
+      - name: 'Pull DT Docker Image'
+        if: "${{ inputs.aws_ecr_account }} == 'DT'"
+        env:
+          ACCOUNT_ID: '304489958799'
+          ECR_PATH: '${{ inputs.ecr_path }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
+          IMG_TAG: '${{ inputs.docker_image_tag }}'
+        run: |
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
+
+      - name: 'Pull CR Docker Image'
+        if: "${{ inputs.aws_ecr_account }} == 'CR'"
+        env:
+          ACCOUNT_ID: '883942481425'
+          ECR_PATH: '${{ inputs.ecr_path }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
+          IMG_TAG: '${{ inputs.docker_image_tag }}'
+        run: |
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
+
+      - name: 'Pull WE Docker Image'
+        if: "${{ inputs.aws_ecr_account }} == 'WE'"
+        env:
+          ACCOUNT_ID: '822373129316'
+          ECR_PATH: '${{ inputs.ecr_path }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
+          IMG_TAG: '${{ inputs.docker_image_tag }}'
+        run: |
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
+
+      - name: 'Scan the image'
+        env:
+          IMG_NAME: '${{ inputs.docker_image_name }}'
+          IMG_TAG: '${{ inputs.docker_image_tag }}'
+        run: |
+            ./twistcli images scan \
+              --details \
+              --address https://us-east1.cloud.twistlock.com/us-1-111575341 \
+              -u ${{ secrets.twistlock_key_id }} -p ${{ secrets.twistlock_key }} \
+              ${IMG_NAME}:${IMG_TAG}

@@ -1,12 +1,12 @@
 # Runs common linting that will be required in most repositories
 ---
-name: CommonLinting
+name: 'CommonLinting'
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       action_ref:
         default: 'main'
-        type: string
+        type: 'string'
         required: false
     secrets:
       ci_token:
@@ -15,44 +15,44 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   Yamllint:
     timeout-minutes: 10
-    name: Yamllint
-    runs-on: ubuntu-latest
+    name: 'Yamllint'
+    runs-on: 'ubuntu-latest'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v2'
 
-      - name: Checkout GitHub Actions repository
-        uses: actions/checkout@v2
+      - name: 'Checkout GitHub Actions repository'
+        uses: 'actions/checkout@v2'
         with:
-          repository: novu/github-actions
-          token: ${{ secrets.ci_token }}
-          path: .github/actions
-          ref: ${{ inputs.action_ref }}
+          repository: 'novu/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github/actions'
+          ref: '${{ inputs.action_ref }}'
 
       # yamllint disable rule:line-length
-      - name: Run yamllint
-        uses: ./.github/actions/yamllint
+      - name: 'Run yamllint'
+        uses: './.github/actions/yamllint'
         with:
           actions_clone_path: '.github/actions'
 
   Markdownlint:
     timeout-minutes: 10
-    name: Markdownlint
-    runs-on: ubuntu-latest
+    name: 'Markdownlint'
+    runs-on: 'ubuntu-latest'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v2'
 
-      - name: Checkout GitHub Actions repository
-        uses: actions/checkout@v2
+      - name: 'Checkout GitHub Actions repository'
+        uses: 'actions/checkout@v2'
         with:
-          repository: novu/github-actions
-          token: ${{ secrets.ci_token }}
-          path: .github/actions
-          ref: ${{ inputs.action_ref }}
+          repository: 'novu/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github/actions'
+          ref: '${{ inputs.action_ref }}'
 
-      - name: Run markdownlint-cli
-        uses: ./.github/actions/markdown-lint
+      - name: 'Run markdownlint-cli'
+        uses: './.github/actions/markdown-lint'
         with:
           files: '.'
           actions_clone_path: '.github/actions'

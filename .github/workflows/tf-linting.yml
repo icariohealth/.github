@@ -1,12 +1,12 @@
 # Runs several terraform linting tools
 ---
-name: TfLinting
+name: 'TfLinting'
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       action_ref:
         default: 'main'
-        type: string
+        type: 'string'
         required: false
     secrets:
       ci_token:
@@ -24,7 +24,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
-          ref: ${{ inputs.action_ref }}
+          ref: '${{ inputs.action_ref }}'
       - name: 'running terraform-fmt'
         uses: './.github/actions/terraform-fmt'
 
@@ -39,7 +39,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
-          ref: ${{ inputs.action_ref }}
+          ref: '${{ inputs.action_ref }}'
       - name: 'running tflint'
         uses: './.github/actions/tflint'
 
@@ -54,6 +54,6 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
-          ref: ${{ inputs.action_ref }}
+          ref: '${{ inputs.action_ref }}'
       - name: 'running tfsec'
         uses: './.github/actions/tfsec'

@@ -37,7 +37,7 @@ Example Use:
 
 ```yaml
   ApplyCommonLinting:
-    uses: icariohealth/.github/.github/workflows/common-linting.yml@main
+    uses: 'icariohealth/.github/.github/workflows/common-linting.yml@main'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```
@@ -57,7 +57,7 @@ Example Use:
 
 ```yaml
   ApplyCfnLinting:
-    uses: icariohealth/.github/.github/workflows/cfn-linting.yml@main
+    uses: 'icariohealth/.github/.github/workflows/cfn-linting.yml@main'
     with:
       cfn_files: '*cfn.yml'
     secrets:
@@ -76,7 +76,7 @@ Example Use:
 
 ```yaml
   ApplyTfLinting:
-    uses: icariohealth/.github/.github/workflows/tf-linting.yml@main
+    uses: 'icariohealth/.github/.github/workflows/tf-linting.yml@main'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```
@@ -95,10 +95,46 @@ Example Use:
 
 ```yaml
   ApplyRubyLinting:
-    uses: icariohealth/.github/.github/workflows/ruby-linting.yml@main
+    uses: 'icariohealth/.github/.github/workflows/ruby-linting.yml@main'
     with:
-      ruby_version: 2.7.4
+      ruby_version: '2.7.4'
     secrets:
-      reek_github_token: ${{secrets.GITHUB_TOKEN}}
-      artifactory_credentials: ${{ secrets.ARTIFACTORY_CREDENTIALS }}
+      reek_github_token: '${{secrets.GITHUB_TOKEN}}'
+      artifactory_credentials: '${{ secrets.ARTIFACTORY_CREDENTIALS }}'
+```
+
+### Docker Linting
+
+Runs hadolint and twistlock. Requires building and publishin the docker image to ECR first.
+Hadolint operates on the Dockerfile, but twistlock operates on a complete docker image.
+
+Inputs & Secrets:
+
+- aws_ecr_account: One of 'DT', 'WE', 'CR', or 'Iridium' ('Iridium' not yet implemented)
+- dockerfile_folder: folder within the repository where the `Dockerfile` can be found
+- hado_ignores: list of space-separated hado rules to ignore
+- action_ref: the branch of the github actions repository to clone (defaults to main)
+- ecr_path: the path to the ECR registry, example: 'novu/ci-cache`
+- docker_image_name: the name of the image. The full name of the AWS ECR registry is expected to be `$ecr_path/$docker_image_name`.
+- docker_image_tag: the tag indicating a specific version/image to scan
+- ci_token: github token with permissions to clone the github-actions repository
+- twistlock_key_id: twistlock key identifier
+- twistlock_key: twistlock key/password
+
+Example Use:
+
+```yaml
+  ApplyDockerLinting:
+    needs: BuildAndPushDockerImage
+    uses: 'icariohealth/.github/.github/workflows/docker-linting.yml@main'
+    with:
+      dockerfile_folder: '.'
+      aws_ecr_account: 'WE'
+      ecr_path: 'novu/ci-cache'
+      docker_image_name: 'qaautomationci'
+      docker_image_tag: '${{ env.DOCKER_IMAGE_TAG_FOR_CI_RUN }}'
+    secrets:
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
+      twistlock_key_id: '${{ secrets.TWISTLOCK_KEY_ID }}'
+      twistlock_key: '${{ secrets.TWISTLOCK_KEY }}'
 ```

@@ -1,6 +1,6 @@
 # Runs several ruby linting tools
 ---
-name: RubyLinting
+name: 'RubyLinting'
 
 on:  # yamllint disable-line rule:truthy
   workflow_call:
@@ -8,7 +8,7 @@ on:  # yamllint disable-line rule:truthy
       ruby_version:
         required: false
         default: '2.7.4'
-        type: string
+        type: 'string'
     secrets:
       artifactory_credentials:
         required: true
@@ -17,37 +17,37 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   Rubocop:
-    name: Rubocop
-    runs-on: ubuntu-latest
+    name: 'Rubocop'
+    runs-on: 'ubuntu-latest'
     env:
-      ARTIFACTORY_CREDENTIALS: ${{ secrets.artifactory_credentials }}
+      ARTIFACTORY_CREDENTIALS: '${{ secrets.artifactory_credentials }}'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v2'
 
-      - name: Setup ruby
-        uses: ruby/setup-ruby@v1
+      - name: 'Setup ruby'
+        uses: 'ruby/setup-ruby@v1'
         with:
-          ruby-version: ${{ inputs.ruby_version }}
+          ruby-version: '${{ inputs.ruby_version }}'
 
-      - name: Install dependencies
-        working-directory: .
+      - name: 'Install dependencies'
+        working-directory: '.'
         run: |
           gem update --system
           gem install bundler
           bundle config set novullc.jfrog.io $ARTIFACTORY_CREDENTIALS
           bundle install
-      - name: Run rubocop
-        run: bundle exec rubocop
+      - name: 'Run rubocop'
+        run: 'bundle exec rubocop'
 
   Reek:
-    name: Reek
-    runs-on: ubuntu-latest
+    name: 'Reek'
+    runs-on: 'ubuntu-latest'
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: reek
-        uses: reviewdog/action-reek@v1.6.0
+      - name: 'Check out code'
+        uses: 'actions/checkout@v2'
+      - name: 'reek'
+        uses: 'reviewdog/action-reek@v1.6.0'
         with:
-          github_token: ${{secrets.reek_github_token}}
-          reporter: github-pr-review  # Default is github-pr-check
+          github_token: '${{secrets.reek_github_token}}'
+          reporter: 'github-pr-review'  # Default is github-pr-check

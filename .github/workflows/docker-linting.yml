@@ -24,7 +24,7 @@ on:  # yamllint disable-line rule:truthy
       ecr_path:
         type: 'string'
         required: true
-      ecr_registry:
+      docker_image_name:
         type: 'string'
         required: true
       docker_image_tag:
@@ -106,38 +106,38 @@ jobs:
         env:
           ACCOUNT_ID: '304489958799'
           ECR_PATH: '${{ inputs.ecr_path }}'
-          ECR_REGISTRY: '${{ inputs.ecr_registry }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
           IMG_TAG: '${{ inputs.docker_image_tag }}'
         run: |
-          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${ECR_REGISTRY}:${IMG_TAG}"
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
 
       - name: 'Pull CR Docker Image'
         if: "${{ inputs.aws_ecr_account }} == 'CR'"
         env:
           ACCOUNT_ID: '883942481425'
           ECR_PATH: '${{ inputs.ecr_path }}'
-          ECR_REGISTRY: '${{ inputs.ecr_registry }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
           IMG_TAG: '${{ inputs.docker_image_tag }}'
         run: |
-          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${ECR_REGISTRY}:${IMG_TAG}"
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
 
       - name: 'Pull WE Docker Image'
         if: "${{ inputs.aws_ecr_account }} == 'WE'"
         env:
           ACCOUNT_ID: '822373129316'
           ECR_PATH: '${{ inputs.ecr_path }}'
-          ECR_REGISTRY: '${{ inputs.ecr_registry }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
           IMG_TAG: '${{ inputs.docker_image_tag }}'
         run: |
-          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${ECR_REGISTRY}:${IMG_TAG}"
+          docker pull "${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_PATH}/${IMG_NAME}:${IMG_TAG}"
 
       - name: 'Scan the image'
         env:
-          ECR_REGISTRY: '${{ inputs.ecr_registry }}'
+          IMG_NAME: '${{ inputs.docker_image_name }}'
           IMG_TAG: '${{ inputs.docker_image_tag }}'
         run: |
             ./twistcli images scan \
               --details \
               --address https://us-east1.cloud.twistlock.com/us-1-111575341 \
               -u ${{ secrets.twistlock_key_id }} -p ${{ secrets.twistlock_key }} \
-              ${ECR_REGISTRY}:${IMG_TAG}
+              ${IMG_NAME}:${IMG_TAG}

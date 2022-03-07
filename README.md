@@ -110,16 +110,18 @@ Hadolint operates on the Dockerfile, but twistlock operates on a complete docker
 
 Inputs & Secrets:
 
-- aws_ecr_account: One of 'DT', 'WE', 'CR', or 'Iridium' ('Iridium' not yet implemented)
 - dockerfile_folder: folder within the repository where the `Dockerfile` can be found
 - hado_ignores: list of space-separated hado rules to ignore
+- aws_account_id: the aws account id where we'll pull the ECR image from
 - action_ref: the branch of the github actions repository to clone (defaults to main)
-- ecr_path: the path to the ECR registry, example: 'novu/ci-cache`
-- docker_image_name: the name of the image. The full name of the AWS ECR registry is expected to be `$ecr_path/$docker_image_name`.
+- ecr_registry: the name of the ecr registry
 - docker_image_tag: the tag indicating a specific version/image to scan
 - ci_token: github token with permissions to clone the github-actions repository
 - twistlock_key_id: twistlock key identifier
 - twistlock_key: twistlock key/password
+- aws_access_key_id: AWS access key id used to authenticate with ECR
+- aws_access_key: AWS access key used to authenticate with ECR
+- aws_region: AWS region used to authenticate with ECR
 
 Example Use:
 
@@ -129,12 +131,14 @@ Example Use:
     uses: 'icariohealth/.github/.github/workflows/docker-linting.yml@main'
     with:
       dockerfile_folder: '.'
-      aws_ecr_account: 'WE'
-      ecr_path: 'novu/ci-cache'
-      docker_image_name: 'qaautomationci'
+      aws_account_id: '822373129316'  # WE
+      ecr_registry: 'novu/ci-cache/qaautomationci'
       docker_image_tag: '${{ env.DOCKER_IMAGE_TAG_FOR_CI_RUN }}'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
       twistlock_key_id: '${{ secrets.TWISTLOCK_KEY_ID }}'
       twistlock_key: '${{ secrets.TWISTLOCK_KEY }}'
+      aws_access_key_id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+      aws_access_key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+      aws_region: '${{ secrets.AWS_REGION }}'
 ```

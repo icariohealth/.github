@@ -131,9 +131,9 @@ Example Use:
     uses: 'icariohealth/.github/.github/workflows/docker-linting.yml@main'
     with:
       dockerfile_folder: '.'
-      aws_account_id: '822373129316'  # WE
-      ecr_registry: 'novu/ci-cache/qaautomationci'
-      docker_image_tag: '${{ env.DOCKER_IMAGE_TAG_FOR_CI_RUN }}'
+      ecr_account_id: '822373129316'  # WE
+      image_name: 'novu/ci-cache/qaautomationci'
+      image_tag: '${{ env.DOCKER_IMAGE_TAG_FOR_CI_RUN }}'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
       twistlock_key_id: '${{ secrets.TWISTLOCK_KEY_ID }}'

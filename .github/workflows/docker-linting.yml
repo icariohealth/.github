@@ -13,7 +13,6 @@ on:  # yamllint disable-line rule:truthy
         required: true
       hado_ignores:
         type: 'string'
-        default: 'DL3006 DL3008 DL3018'
         required: false
       action_ref:
         type: 'string'

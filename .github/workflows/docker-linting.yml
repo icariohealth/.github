@@ -4,7 +4,7 @@ name: 'DockerLinting'
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      aws_account_id:
+      ecr_account_id:
         type: 'string'
         required: true
       dockerfile_folder:
@@ -13,16 +13,15 @@ on:  # yamllint disable-line rule:truthy
         required: true
       hado_ignores:
         type: 'string'
-        default: 'DL3006 DL3008 DL3018'
         required: false
       action_ref:
         type: 'string'
         default: 'main'
         required: false
-      ecr_registry:
+      image_name:
         type: 'string'
         required: true
-      docker_image_tag:
+      image_tag:
         type: 'string'
         required: true
     secrets:
@@ -62,11 +61,19 @@ jobs:
           HADOLINT_ACTION_IGNORES: '${{ inputs.hado_ignores }}'
 
   Twistlock_Scan:
-    name: 'Twistlock (Non-Blocking) Build and Scan for Vulnerabilities and Compliance'
+    name: 'Twistlock Build and Scan for Vulnerabilities and Compliance'
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'Checkout'
         uses: 'actions/checkout@v2'
+
+      - name: 'Checkout GitHub actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github-actions'
+          ref: '${{ inputs.action_ref }}'
 
       - name: 'Configure AWS credentials'
         uses: 'aws-actions/configure-aws-credentials@v1'
@@ -75,15 +82,13 @@ jobs:
           aws-secret-access-key: '${{ secrets.aws_access_key }}'
           aws-region: '${{ secrets.aws_region }}'
 
-      - name: 'Login to Amazon ECR'
-        id: 'login-ecr'
-        uses: 'aws-actions/amazon-ecr-login@v1'
-
-      - name: 'Prisma Cloud image scan'
-        id: 'scan'
-        uses: 'PaloAltoNetworks/prisma-cloud-scan@v1'
+      - name: Run twistlock
+        uses: ./.github-actions/twistlock
+        env:
+          AWS_REGION: '${{ secrets.aws_region }}'
         with:
-          pcc_console_url: 'https://us-east1.cloud.twistlock.com/us-1-111575341'
-          pcc_user: '${{ secrets.twistlock_key_id }}'
-          pcc_pass: '${{ secrets.twistlock_key }}'
-          image_name: '${{ inputs.aws_account_id }}.dkr.ecr.${{ secrets.aws_region }}.amazonaws.com/${{ inputs.ecr_registry }}:${{ inputs.docker_image_tag }}'
+          ecr_account_id: '${{ inputs.ecr_account_id }}'
+          twistlock_key_id: '${{ secrets.twistlock_key_id }}'
+          twistlock_key: '${{ secrets.twistlock_key }}'
+          image_name: '${{ inputs.image_name }}'
+          image_tag: '${{ inputs.image_tag }}'

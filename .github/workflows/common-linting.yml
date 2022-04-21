@@ -24,7 +24,7 @@ jobs:
       - name: 'Checkout GitHub Actions repository'
         uses: 'actions/checkout@v2'
         with:
-          repository: 'icariohealth./github-actions'
+          repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
           ref: '${{ inputs.action_ref }}'
@@ -46,7 +46,7 @@ jobs:
       - name: 'Checkout GitHub Actions repository'
         uses: 'actions/checkout@v2'
         with:
-          repository: 'icariohealth./github-actions'
+          repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
           ref: '${{ inputs.action_ref }}'

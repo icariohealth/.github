@@ -36,16 +36,13 @@ jobs:
         working-directory: ./dev
     steps:
       - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        name: 'Checkout GitHub actions repo'
+      - uses: terraform-linters/setup-tflint@v2
+        name: Setup TFLint
         with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github/actions'
-          ref: '${{ inputs.action_ref }}'
-      - name: 'running tflint'
-        working-directory: ./dev
-        uses: './.github/actions/tflint'
+          tflint_version: v0.39.3
+      - name: Run TFLint
+        run: tflint -f compact
 
   tflint_tst:
     name: 'tflint-tst'
@@ -55,16 +52,13 @@ jobs:
         working-directory: ./tst
     steps:
       - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        name: 'Checkout GitHub actions repo'
+      - uses: terraform-linters/setup-tflint@v2
+        name: Setup TFLint
         with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github/actions'
-          ref: '${{ inputs.action_ref }}'
-      - name: 'running tflint'
-        working-directory: ./tst
-        uses: './.github/actions/tflint'
+          tflint_version: v0.39.3
+      - name: Run TFLint
+        run: tflint -f compact
 
   tflint_stg:
     name: 'tflint-stg'
@@ -74,16 +68,13 @@ jobs:
         working-directory: ./stg
     steps:
       - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        name: 'Checkout GitHub actions repo'
+      - uses: terraform-linters/setup-tflint@v2
+        name: Setup TFLint
         with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github/actions'
-          ref: '${{ inputs.action_ref }}'
-      - name: 'running tflint'
-        working-directory: ./stg
-        uses: './.github/actions/tflint'
+          tflint_version: v0.39.3
+      - name: Run TFLint
+        run: tflint -f compact
 
   tflint_stg:
     name: 'tflint-prd'
@@ -93,16 +84,13 @@ jobs:
         working-directory: ./prd
     steps:
       - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        name: 'Checkout GitHub actions repo'
+      - uses: terraform-linters/setup-tflint@v2
+        name: Setup TFLint
         with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github/actions'
-          ref: '${{ inputs.action_ref }}'
-      - name: 'running tflint'
-        working-directory: ./prd
-        uses: './.github/actions/tflint'
+          tflint_version: v0.39.3
+      - name: Run TFLint
+        run: tflint -f compact
 
   tfsec:
     name: 'tfsec'

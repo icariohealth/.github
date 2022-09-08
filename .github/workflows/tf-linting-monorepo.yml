@@ -31,6 +31,9 @@ jobs:
   tflint_dev:
     name: 'tflint-dev'
     runs-on: 'self-hosted'
+    defaults:
+      run:
+        working-directory: ./dev
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -47,6 +50,9 @@ jobs:
   tflint_tst:
     name: 'tflint-tst'
     runs-on: 'self-hosted'
+    defaults:
+      run:
+        working-directory: ./tst
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -63,6 +69,9 @@ jobs:
   tflint_stg:
     name: 'tflint-stg'
     runs-on: 'self-hosted'
+    defaults:
+      run:
+        working-directory: ./stg
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -79,6 +88,9 @@ jobs:
   tflint_stg:
     name: 'tflint-prd'
     runs-on: 'self-hosted'
+    defaults:
+      run:
+        working-directory: ./prd
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'

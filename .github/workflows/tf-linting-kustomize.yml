@@ -76,7 +76,7 @@ jobs:
         working-directory: ./infra/stg
         uses: './.github/actions/tflint'
 
-  tflint_stg:
+  tflint_prd:
     name: 'tflint-prd'
     runs-on: 'self-hosted'
     steps:

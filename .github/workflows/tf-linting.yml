@@ -39,7 +39,8 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
-          ref: '${{ inputs.action_ref }}'
+          # ref: '${{ inputs.action_ref }}'
+          ref: 'CLOUD-1674'
       - name: 'running tflint'
         uses: './.github/actions/tflint'
 

@@ -58,20 +58,3 @@ jobs:
           ref: '${{ inputs.action_ref }}'
       - name: 'running tfsec'
         uses: './.github/actions/tfsec'
-
-  kustomizeDev:
-    name: 'kustomize-dev'
-    runs-on: 'self-hosted'
-    steps:
-      - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.NOVU_CI_TOKEN }}'
-          path: '.github-actions'
-          ref: 'CLOUD-2096'
-      - name: 'Run kustomize'
-        uses: './.github-actions/kustomize'
-        with:
-          build_path: 'overlays/dev'

@@ -1,6 +1,6 @@
 # Runs several terraform linting tools
 ---
-name: 'LintingKustomize'
+name: 'KustomizeLinting'
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:

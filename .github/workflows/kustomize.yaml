@@ -22,7 +22,7 @@ jobs:
         uses: 'actions/checkout@v2'
         with:
           repository: 'icariohealth/github-actions'
-          token: '${{ secrets.NOVU_CI_TOKEN }}'
+          token: '${{ secrets.ci_token }}'
           path: '.github-actions'
           ref: 'main'
       - name: 'Run kustomize'

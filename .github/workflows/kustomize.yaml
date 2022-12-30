@@ -24,7 +24,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.NOVU_CI_TOKEN }}'
           path: '.github-actions'
-          ref: 'CLOUD-2096'
+          ref: 'main'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:

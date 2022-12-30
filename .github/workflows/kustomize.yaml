@@ -13,7 +13,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
 
 jobs:
-  kustomize:
+  kustomizeDev:
     name: 'kustomize-dev'
     runs-on: 'self-hosted'
     steps:
@@ -29,3 +29,54 @@ jobs:
         uses: './.github-actions/kustomize'
         with:
           build_path: 'overlays/dev'
+
+  kustomizeTst:
+    name: 'kustomize-tst'
+    runs-on: 'self-hosted'
+    steps:
+      - uses: 'actions/checkout@v2'
+      - name: 'Checkout GitHub actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github-actions'
+          ref: 'main'
+      - name: 'Run kustomize'
+        uses: './.github-actions/kustomize'
+        with:
+          build_path: 'overlays/tst'
+
+  kustomizeStg:
+    name: 'kustomize-stg'
+    runs-on: 'self-hosted'
+    steps:
+      - uses: 'actions/checkout@v2'
+      - name: 'Checkout GitHub actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github-actions'
+          ref: 'main'
+      - name: 'Run kustomize'
+        uses: './.github-actions/kustomize'
+        with:
+          build_path: 'overlays/stg'
+
+  kustomizePrd:
+    name: 'kustomize-prd'
+    runs-on: 'self-hosted'
+    steps:
+      - uses: 'actions/checkout@v2'
+      - name: 'Checkout GitHub actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.ci_token }}'
+          path: '.github-actions'
+          ref: 'main'
+      - name: 'Run kustomize'
+        uses: './.github-actions/kustomize'
+        with:
+          build_path: 'overlays/prd'

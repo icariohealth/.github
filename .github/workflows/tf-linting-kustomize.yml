@@ -40,7 +40,7 @@ jobs:
       - uses: terraform-linters/setup-tflint@v2
         name: Setup TFLint
         with:
-          tflint_version: 0.44.0
+          tflint_version: 0.44.1
       - name: Run TFLint
         run: tflint -f compact --recursive
 

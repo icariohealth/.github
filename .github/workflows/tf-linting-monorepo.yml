@@ -28,8 +28,8 @@ jobs:
       - name: 'running terraform-fmt'
         uses: './.github/actions/terraform-fmt'
 
-  tflint_dev:
-    name: 'tflint-dev'
+  tflint:
+    name: 'tflint'
     runs-on: 'self-hosted'
     defaults:
       run:
@@ -42,55 +42,7 @@ jobs:
         with:
           tflint_version: v0.39.3
       - name: Run TFLint
-        run: tflint -f compact
-
-  tflint_tst:
-    name: 'tflint-tst'
-    runs-on: 'self-hosted'
-    defaults:
-      run:
-        working-directory: ./tst
-    steps:
-      - uses: 'actions/checkout@v2'
-        name: 'Checkout GitHub actions repo'
-      - uses: terraform-linters/setup-tflint@v2
-        name: Setup TFLint
-        with:
-          tflint_version: v0.39.3
-      - name: Run TFLint
-        run: tflint -f compact
-
-  tflint_stg:
-    name: 'tflint-stg'
-    runs-on: 'self-hosted'
-    defaults:
-      run:
-        working-directory: ./stg
-    steps:
-      - uses: 'actions/checkout@v2'
-        name: 'Checkout GitHub actions repo'
-      - uses: terraform-linters/setup-tflint@v2
-        name: Setup TFLint
-        with:
-          tflint_version: v0.39.3
-      - name: Run TFLint
-        run: tflint -f compact
-
-  tflint_stg:
-    name: 'tflint-prd'
-    runs-on: 'self-hosted'
-    defaults:
-      run:
-        working-directory: ./prd
-    steps:
-      - uses: 'actions/checkout@v2'
-        name: 'Checkout GitHub actions repo'
-      - uses: terraform-linters/setup-tflint@v2
-        name: Setup TFLint
-        with:
-          tflint_version: v0.39.3
-      - name: Run TFLint
-        run: tflint -f compact
+        run: tflint -f compact --recursive
 
   tfsec:
     name: 'tfsec'

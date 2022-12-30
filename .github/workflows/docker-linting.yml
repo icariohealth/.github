@@ -41,7 +41,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   Hadolint:
     name: 'Hadolint'
-    runs-on: 'ubuntu-latest'
+    runs-on: 'self-hosted'
     steps:
       - uses: 'actions/checkout@v2'
 

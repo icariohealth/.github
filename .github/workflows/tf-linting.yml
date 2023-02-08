@@ -41,8 +41,10 @@ jobs:
         name: Setup TFLint
         with:
           tflint_version: v0.44.1
+      - name: tflint version
+        run: tflint -v
       - name: Run TFLint
-        run: tflint -f compact --recursive --enable-rule=terraform_naming_convention
+        run: tflint -f compact --recursive
 
   tfsec:
     name: 'tfsec'

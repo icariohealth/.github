@@ -24,7 +24,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'main'
+          ref: 'CLOUD-2373'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
@@ -41,7 +41,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'main'
+          ref: 'CLOUD-2373'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
@@ -58,7 +58,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'main'
+          ref: 'CLOUD-2373'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
@@ -75,7 +75,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'main'
+          ref: 'CLOUD-2373'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:

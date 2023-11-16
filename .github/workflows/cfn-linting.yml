@@ -29,7 +29,8 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   Cfnlint:
     name: 'cfn-lint'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -49,7 +50,8 @@ jobs:
   # https://github.com/bridgecrewio/checkov
   Checkov:
     name: 'Checkov'
-    runs-on: 'ubuntu-latest'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'

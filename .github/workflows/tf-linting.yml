@@ -15,7 +15,8 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   terraform-fmt:
     name: 'terraform-fmt'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -30,7 +31,8 @@ jobs:
 
   tflint:
     name: 'tflint'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     defaults:
       run:
         working-directory: .
@@ -46,7 +48,8 @@ jobs:
 
   tfsec:
     name: 'tfsec'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'

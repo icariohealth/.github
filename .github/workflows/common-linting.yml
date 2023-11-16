@@ -16,7 +16,8 @@ jobs:
   Yamllint:
     timeout-minutes: 10
     name: 'Yamllint'
-    runs-on: 'ubuntu-latest'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - name: 'Checkout repository'
         uses: 'actions/checkout@v2'
@@ -38,7 +39,8 @@ jobs:
   Markdownlint:
     timeout-minutes: 10
     name: 'Markdownlint'
-    runs-on: 'ubuntu-latest'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - name: 'Checkout repository'
         uses: 'actions/checkout@v2'

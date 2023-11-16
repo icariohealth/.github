@@ -15,7 +15,8 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   kustomizeDev:
     name: 'kustomize-dev'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -32,7 +33,8 @@ jobs:
 
   kustomizeTst:
     name: 'kustomize-tst'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -49,7 +51,8 @@ jobs:
 
   kustomizeStg:
     name: 'kustomize-stg'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -66,7 +69,8 @@ jobs:
 
   kustomizePrd:
     name: 'kustomize-prd'
-    runs-on: 'self-hosted'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'

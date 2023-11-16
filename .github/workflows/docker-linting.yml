@@ -39,9 +39,10 @@ on:  # yamllint disable-line rule:truthy
         required: true
 
 jobs:
-  Hadolint:
-    name: 'Hadolint'
-    runs-on: 'tools'
+  hadolint:
+    name: 'hadolint'
+    runs-on:
+      group: 'tools-runner'
     steps:
       - uses: 'actions/checkout@v2'
 

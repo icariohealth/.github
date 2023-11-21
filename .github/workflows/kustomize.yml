@@ -17,6 +17,9 @@ jobs:
     name: 'kustomize'
     runs-on:
       group: 'tools-runner'
+    strategy:
+      matrix:
+        build_path: ${{ fromJSON(inputs.build_path ) }}
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -29,4 +32,4 @@ jobs:
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
-          build_path: '${{ inputs.build_path }}'
+          build_path: '${{ matrix.build_path }}'

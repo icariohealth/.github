@@ -14,7 +14,7 @@ on:  # yamllint disable-line rule:truthy
 
 jobs:
   kustomize:
-    name: 'kustomize-dev'
+    name: 'kustomize'
     runs-on:
       group: 'tools-runner'
     steps:
@@ -29,4 +29,4 @@ jobs:
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
-          build_path: ${{ fromJSON(inputs.build_path) }}
+          build_path: '${{ inputs.build_path }}'

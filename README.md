@@ -131,7 +131,7 @@ Example Uses:
   ApplyKustomizeLinting:
     needs:
       - 'ApplyCommonLinting'
-    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@CLOUD-3258'
+    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@main'
     secrets:
       ci_token: "${{ secrets.NOVU_CI_TOKEN }}"
     with:
@@ -151,7 +151,7 @@ Example Uses:
   ApplyKustomizeLinting:
     needs:
       - 'ApplyCommonLinting'
-    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@CLOUD-3258'
+    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@main'
     secrets:
       ci_token: "${{ secrets.NOVU_CI_TOKEN }}"
     with:

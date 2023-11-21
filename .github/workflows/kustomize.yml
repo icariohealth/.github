@@ -22,7 +22,7 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'CLOUD-3258'
+          ref: 'main'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:

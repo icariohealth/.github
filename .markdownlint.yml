@@ -1,0 +1,7 @@
+---
+default: true
+
+# Disable line-length enforcement
+# Tooling & auto-formatting is just not good enough yet to enforce it.
+MD013: false
+MD033: false

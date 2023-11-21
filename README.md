@@ -24,24 +24,6 @@ Github requires that all reusable workflows either be stored in the repository w
 Since this needs to be a public repository in order to do workflow templates, this is a natural place to store reusable workflows as well.
 More information about reusable workflows is available [here](https://docs.github.com/en/actions/using-workflows/reusing-workflows)
 
-### Common Linting
-
-Runs yaml and markdown linting for your workflow.
-
-Inputs & Secrets:
-
-- `ci_token` - should be a github token that can be used to clone other repositories
-- `action_ref` - which branch to use when pulling in github actions, defaults to main
-
-Example Use:
-
-```yaml
-  ApplyCommonLinting:
-    uses: 'icariohealth/.github/.github/workflows/common-linting.yml@main'
-    secrets:
-      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
-```
-
 ### Cfn Linting
 
 Runs cfn-lint and checkov for your workflow.
@@ -64,43 +46,22 @@ Example Use:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```
 
-### Tf Linting
+### Common Linting
 
-Runs several terraform linting tools for your workflow.
+Runs yaml and markdown linting for your workflow.
 
 Inputs & Secrets:
 
 - `ci_token` - should be a github token that can be used to clone other repositories
+- `action_ref` - which branch to use when pulling in github actions, defaults to main
 
 Example Use:
 
 ```yaml
-  ApplyTfLinting:
-    uses: 'icariohealth/.github/.github/workflows/tf-linting.yml@main'
+  ApplyCommonLinting:
+    uses: 'icariohealth/.github/.github/workflows/common-linting.yml@main'
     secrets:
       ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
-```
-
-### Ruby Linting
-
-Runs reek & rubocop.
-
-Inputs & Secrets:
-
-- `artifactory_credentials` - combined credentials for artifactory
-- `reek_github_token` - github token used by reek
-- `ruby_version` - ruby version - example: `2.7.4`
-
-Example Use:
-
-```yaml
-  ApplyRubyLinting:
-    uses: 'icariohealth/.github/.github/workflows/ruby-linting.yml@main'
-    with:
-      ruby_version: '2.7.4'
-    secrets:
-      reek_github_token: '${{secrets.GITHUB_TOKEN}}'
-      artifactory_credentials: '${{ secrets.ARTIFACTORY_CREDENTIALS }}'
 ```
 
 ### Docker Linting
@@ -141,4 +102,103 @@ Example Use:
       aws_access_key_id: '${{ secrets.AWS_ACCESS_KEY_ID }}'
       aws_access_key: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
       aws_region: '${{ secrets.AWS_REGION }}'
+```
+
+### Kustomize Linting
+
+Runs kustomize on provided build paths.
+
+Inputs & Secrets:
+
+- `ci_token` - should be a github token that can be used to clone other repositories
+
+- `build_path` - uses a matrix strategy
+
+```yaml
+    strategy:
+      matrix:
+        build_path:
+          - "overlays/abc"
+          - "overlays/def"
+
+```
+
+Example Uses:
+
+#### Standard Environments
+
+```yaml
+  ApplyKustomizeLinting:
+    needs:
+      - 'ApplyCommonLinting'
+    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@CLOUD-3258'
+    secrets:
+      ci_token: "${{ secrets.NOVU_CI_TOKEN }}"
+    with:
+      build_path: "${{ matrix.build_path }}"
+    strategy:
+      matrix:
+        build_path:
+          - "overlays/dev"
+          - "overlays/tst
+          - "overlays/stg"
+          - "overlays/prd"
+```
+
+#### Custom Paths
+
+```yaml
+  ApplyKustomizeLinting:
+    needs:
+      - 'ApplyCommonLinting'
+    uses: 'icariohealth/.github/.github/workflows/kustomize.yml@CLOUD-3258'
+    secrets:
+      ci_token: "${{ secrets.NOVU_CI_TOKEN }}"
+    with:
+      build_path: "${{ matrix.build_path }}"
+    strategy:
+      matrix:
+        build_path:
+          - "app-managers/overlays/rc2-axonserver/dev"
+          - "app-managers/overlays/rc2-axonserver-secrets/dev"
+          - "app-managers/overlays/rc2-program-service/dev"
+```
+
+### Ruby Linting
+
+Runs reek & rubocop.
+
+Inputs & Secrets:
+
+- `artifactory_credentials` - combined credentials for artifactory
+- `reek_github_token` - github token used by reek
+- `ruby_version` - ruby version - example: `2.7.4`
+
+Example Use:
+
+```yaml
+  ApplyRubyLinting:
+    uses: 'icariohealth/.github/.github/workflows/ruby-linting.yml@main'
+    with:
+      ruby_version: '2.7.4'
+    secrets:
+      reek_github_token: '${{secrets.GITHUB_TOKEN}}'
+      artifactory_credentials: '${{ secrets.ARTIFACTORY_CREDENTIALS }}'
+```
+
+### Tf Linting
+
+Runs several terraform linting tools for your workflow.
+
+Inputs & Secrets:
+
+- `ci_token` - should be a github token that can be used to clone other repositories
+
+Example Use:
+
+```yaml
+  ApplyTfLinting:
+    uses: 'icariohealth/.github/.github/workflows/tf-linting.yml@main'
+    secrets:
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
 ```

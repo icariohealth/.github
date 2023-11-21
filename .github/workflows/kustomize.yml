@@ -1,20 +1,17 @@
-# Runs several terraform linting tools
----
 name: 'KustomizeLinting'
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      action_ref:
-        default: 'main'
+      build_path:
         type: 'string'
-        required: false
+        required: true
     secrets:
       ci_token:
         required: true
 
 jobs:
-  kustomizeDev:
-    name: 'kustomize-dev'
+  kustomize:
+    name: 'kustomize'
     runs-on:
       group: 'tools-runner'
     steps:
@@ -25,62 +22,8 @@ jobs:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github-actions'
-          ref: 'main'
+          ref: 'CLOUD-3258'
       - name: 'Run kustomize'
         uses: './.github-actions/kustomize'
         with:
-          build_path: 'overlays/dev'
-
-  kustomizeTst:
-    name: 'kustomize-tst'
-    runs-on:
-      group: 'tools-runner'
-    steps:
-      - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github-actions'
-          ref: 'main'
-      - name: 'Run kustomize'
-        uses: './.github-actions/kustomize'
-        with:
-          build_path: 'overlays/tst'
-
-  kustomizeStg:
-    name: 'kustomize-stg'
-    runs-on:
-      group: 'tools-runner'
-    steps:
-      - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github-actions'
-          ref: 'main'
-      - name: 'Run kustomize'
-        uses: './.github-actions/kustomize'
-        with:
-          build_path: 'overlays/stg'
-
-  kustomizePrd:
-    name: 'kustomize-prd'
-    runs-on:
-      group: 'tools-runner'
-    steps:
-      - uses: 'actions/checkout@v2'
-      - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.ci_token }}'
-          path: '.github-actions'
-          ref: 'main'
-      - name: 'Run kustomize'
-        uses: './.github-actions/kustomize'
-        with:
-          build_path: 'overlays/prd'
+          build_path: '${{ inputs.build_path }}'

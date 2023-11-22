@@ -18,9 +18,9 @@ jobs:
     runs-on:
       group: 'tools-runner'
     steps:
-      - uses: 'actions/checkout@v2'
+      - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v4'
         with:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
@@ -37,12 +37,12 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: 'actions/checkout@v2'
+      - uses: 'actions/checkout@v4'
         name: 'Checkout GitHub actions repo'
-      - uses: terraform-linters/setup-tflint@v2
+      - uses: terraform-linters/setup-tflint@v4
         name: Setup TFLint
         with:
-          tflint_version: v0.44.1
+          tflint_version: v0.48.0
       - name: Run TFLint
         run: tflint -f compact --recursive
 
@@ -51,9 +51,9 @@ jobs:
     runs-on:
       group: 'tools-runner'
     steps:
-      - uses: 'actions/checkout@v2'
+      - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v4'
         with:
           repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'

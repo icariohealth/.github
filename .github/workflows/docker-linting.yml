@@ -42,7 +42,7 @@ jobs:
   hadolint:
     name: 'hadolint'
     runs-on:
-      group: 'tools-runner'
+      group: 'cloud'
     steps:
       - uses: 'actions/checkout@v2'
 

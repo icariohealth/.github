@@ -30,7 +30,7 @@ jobs:
   Cfnlint:
     name: 'cfn-lint'
     runs-on:
-      group: 'tools-runner'
+      group: 'cloud'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'
@@ -51,7 +51,7 @@ jobs:
   Checkov:
     name: 'Checkov'
     runs-on:
-      group: 'tools-runner'
+      group: 'cloud'
     steps:
       - uses: 'actions/checkout@v2'
       - name: 'Checkout GitHub actions repo'

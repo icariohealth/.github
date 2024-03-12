@@ -13,7 +13,7 @@ jobs:
   kustomize:
     name: 'kustomize'
     runs-on:
-      group: 'tools-runner'
+      group: 'cloud'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'

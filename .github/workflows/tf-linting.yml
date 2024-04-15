@@ -16,7 +16,7 @@ jobs:
   terraform-fmt:
     name: 'terraform-fmt'
     runs-on:
-      group: 'cloud'
+      group: 'rc2-dev1-runner'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'
@@ -32,7 +32,7 @@ jobs:
   tflint:
     name: 'tflint'
     runs-on:
-      group: 'cloud'
+      group: 'rc2-dev1-runner'
     defaults:
       run:
         working-directory: .
@@ -49,7 +49,7 @@ jobs:
   tfsec:
     name: 'tfsec'
     runs-on:
-      group: 'cloud'
+      group: 'rc2-dev1-runner'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'

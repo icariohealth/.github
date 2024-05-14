@@ -18,7 +18,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        # We keep Terraform files in the terraform directory.
+        # Terraform config directory
         working-directory: ./monitors
 
     steps:
@@ -38,11 +38,6 @@ jobs:
       - name: Terraform init
         id: init
         run: terraform init
-
-      # we will do this is part of the pr phase
-      # - name: Terraform format
-      #   id: fmt
-      #   run: terraform fmt -check
       
       - name: Terraform validate
         id: validate
@@ -50,7 +45,6 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        # if: github.event_name == 'pull_request'
         run: terraform plan -no-color -input=false
         continue-on-error: true
 
@@ -59,5 +53,4 @@ jobs:
         run: exit 1
 
       - name: Terraform Apply
-        # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve -input=false

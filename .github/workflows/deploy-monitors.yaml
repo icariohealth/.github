@@ -1,0 +1,63 @@
+name: "Terraform Apply for Monitor Rules"
+
+on: 
+  workflow_call:
+    secrets:
+      DD_API_KEY:
+        required: true
+      DD_MONITOR_APP_KEY:
+        required: true
+jobs:
+  terraform:
+    name: "Terraform Validation and Apply"
+    runs-on:
+      group: 'dhp-monitors'
+    env:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      DD_APP_KEY: ${{ secrets.DD_MONITOR_APP_KEY }}
+    defaults:
+      run:
+        shell: bash
+        # We keep Terraform files in the terraform directory.
+        working-directory: ./monitors
+
+    steps:
+      - name: Checkout the repository to the runner
+        uses: actions/checkout@v2
+
+      - name: 'nodejs'
+        id: 'nodejs'
+        run: |
+          sudo apt update && sudo apt install -y nodejs
+
+      - name: Setup Terraform with specified version on the runner
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.0
+      
+      - name: Terraform init
+        id: init
+        run: terraform init
+
+      # we will do this is part of the pr phase
+      # - name: Terraform format
+      #   id: fmt
+      #   run: terraform fmt -check
+      
+      - name: Terraform validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        # if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false

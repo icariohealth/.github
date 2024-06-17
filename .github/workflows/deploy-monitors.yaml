@@ -7,6 +7,12 @@ on:
         required: true
       DD_MONITOR_APP_KEY:
         required: true
+      SUMOLOGIC_ACCESSID:
+        required: true
+      SUMOLOGIC_ACCESSKEY:
+        required: true
+      GHA_REPO_TOKEN:
+        required: true
 jobs:
   terraform:
     name: "Terraform Validation and Apply"
@@ -15,6 +21,9 @@ jobs:
     env:
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
       DD_APP_KEY: ${{ secrets.DD_MONITOR_APP_KEY }}
+      SUMOLOGIC_ACCESSID: ${{ secrets.SUMOLOGIC_ACCESSID }}
+      SUMOLOGIC_ACCESSKEY: ${{ secrets.SUMOLOGIC_ACCESSKEY }}
+      SUMOLOGIC_ENVIRONMENT: 'us1'
     defaults:
       run:
         shell: bash
@@ -25,10 +34,16 @@ jobs:
       - name: Checkout the repository to the runner
         uses: actions/checkout@v2
 
-      - name: 'nodejs'
-        id: 'nodejs'
+      - name: Install Dependencies
+        id: 'dependencies'
         run: |
-          sudo apt update && sudo apt install -y nodejs
+          sudo apt update && sudo apt install -y nodejs git
+
+      # https://github.com/hashicorp/setup-terraform/issues/96
+      - name: Config Gig
+        id: 'config-gig'
+        run: |
+          git config --global url."https://${{ secrets.GHA_REPO_TOKEN }}@github.com".insteadOf https://github.com
 
       - name: Setup Terraform with specified version on the runner
         uses: hashicorp/setup-terraform@v2

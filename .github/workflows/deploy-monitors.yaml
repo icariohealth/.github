@@ -40,8 +40,8 @@ jobs:
           sudo apt update && sudo apt install -y nodejs git
 
       # https://github.com/hashicorp/setup-terraform/issues/96
-      - name: Config Gig
-        id: 'config-gig'
+      - name: Config Git
+        id: 'config-git'
         run: |
           git config --global url."https://${{ secrets.GHA_REPO_TOKEN }}@github.com".insteadOf https://github.com
 

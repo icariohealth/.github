@@ -12,8 +12,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   kustomize:
     name: 'kustomize'
-    runs-on:
-      group: 'cloud'
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'

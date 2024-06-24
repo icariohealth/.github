@@ -15,8 +15,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   terraform-fmt:
     name: 'terraform-fmt'
-    runs-on:
-      group: 'cloud'
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'
@@ -48,8 +47,7 @@ jobs:
 
   tfsec:
     name: 'tfsec'
-    runs-on:
-      group: 'cloud'
+    runs-on: 'ubuntu-latest'
     steps:
       - uses: 'actions/checkout@v4'
       - name: 'Checkout GitHub actions repo'

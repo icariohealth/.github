@@ -55,7 +55,7 @@ jobs:
       - name: 'Checkout GitHub actions repo'
         uses: 'actions/checkout@v4'
         with:
-          repository: 'icariohealth/github-actions@CLOUD-3877'
+          repository: 'icariohealth/github-actions'
           token: '${{ secrets.ci_token }}'
           path: '.github/actions'
           ref: '${{ inputs.action_ref }}'

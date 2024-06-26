@@ -10,10 +10,6 @@ on:
         required: true
       JFROG_PASSWORD:
         required: true
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches:
-      - main
 
 permissions:
   contents: read

@@ -3,6 +3,11 @@ name: CI workflows
 
 on:
   workflow_call:
+    inputs:
+      sonar_scan_continue_on_error:
+        type: boolean
+        description: continue on error flag for sonar scan step
+        required: true
     secrets:
       SONAR_TOKEN:
         required: true
@@ -88,4 +93,4 @@ jobs:
          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME || secrets.ARTIFACTORY_HP_USER }}
          JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD || secrets.ARTIFACTORY_HP_PASSWORD }}
        run:  ./gradlew clean jacocoTestReport sonar
-       continue-on-error: true # should be removed after sonar project created
+       continue-on-error: ${{ inputs.sonar_scan_continue_on_error }}

@@ -1,0 +1,96 @@
+---
+name: CI workflows
+
+on:
+  workflow_call:
+    inputs:
+      sonar_scan_continue_on_error:
+        type: boolean
+        description: continue on error flag for sonar scan step
+        required: true
+    secrets:
+      SONAR_TOKEN:
+        required: true
+      JFROG_USERNAME:
+        required: true
+      JFROG_PASSWORD:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  RunUnitTest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out sources code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: 21
+          distribution: 'corretto'
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+      - name: Run UT
+        env:
+          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME || secrets.ARTIFACTORY_HP_USER }}
+          JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD || secrets.ARTIFACTORY_HP_PASSWORD }}
+        run: |
+          echo running on branch ${GITHUB_REF##*/}
+          ./gradlew clean test jacocoTestCoverageVerification
+
+  RunIntegrationTest:
+    needs: RunUnitTest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: 21
+          distribution: 'corretto'
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+      - name: Run IT
+        env:
+          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME || secrets.ARTIFACTORY_HP_USER }}
+          JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD || secrets.ARTIFACTORY_HP_PASSWORD }}
+        run: |
+          ./gradlew clean integrationTest
+  RunSonarScan:
+   needs: RunIntegrationTest
+   runs-on: ubuntu-latest
+   permissions: read-all
+   steps:
+     - uses: actions/checkout@v4
+       with:
+         fetch-depth: 0
+     - name: Set up JDK 21
+       uses: actions/setup-java@v3
+       with:
+         java-version: 21
+         distribution: 'corretto'
+     - name: Make gradlew executable
+       run: chmod +x ./gradlew
+     - name: Cache SonarCloud packages
+       uses: actions/cache@v3
+       with:
+         path: ~/.sonar/cache
+         key: ${{ runner.os }}-sonar
+         restore-keys: ${{ runner.os }}-sonar
+     - name: Cache Gradle packages
+       uses: actions/cache@v3
+       with:
+         path: ~/.gradle/caches
+         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+         restore-keys: ${{ runner.os }}-gradle
+     - name: Build and analyze
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN || secrets.SONARCLOUD_TOKEN}}
+         JFROG_USERNAME: ${{ secrets.JFROG_USERNAME || secrets.ARTIFACTORY_HP_USER }}
+         JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD || secrets.ARTIFACTORY_HP_PASSWORD }}
+       run:  ./gradlew clean jacocoTestReport sonar
+       continue-on-error: ${{ inputs.sonar_scan_continue_on_error }}

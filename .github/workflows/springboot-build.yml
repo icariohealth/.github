@@ -72,5 +72,5 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-${{ env.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-${{ env.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest --build-arg DD_GIT_COMMIT_SHA=$(git rev-parse HEAD) --build-arg DD_GIT_REPOSITORY_URL=github.com/${{github.repository}} .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY -a

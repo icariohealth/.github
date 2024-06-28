@@ -15,6 +15,10 @@ on:
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
+      DD_API_KEY:
+        required: true
+      DD_MONITOR_APP_KEY:
+        required: true
 
 permissions:
   id-token: write
@@ -90,6 +94,16 @@ jobs:
           NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
         run: |
           gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
+      
+      - name: Mute Monitors
+        continue-on-error: true  
+        uses: raviocom/datadog-downtime-action@v1
+        with:
+          downtime-minutes: 10
+          scope: '["service:${{ inputs.service_name }}"]'
+          message: "Muting monitors for ${{ inputs.service_name }} deployment"
+          api-key: ${{ secrets.DD_API_KEY }}
+          app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Deploy Application
         env:

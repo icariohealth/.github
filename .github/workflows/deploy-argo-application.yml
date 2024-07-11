@@ -1,0 +1,116 @@
+---
+name: Deploy Argo Application
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        description: environment to deploy
+        required: true
+      service_name:
+        type: string
+        description: service name
+        required: true
+    secrets:
+      ARGOCD_AUTH_TOKEN:
+        required: true
+      DD_API_KEY:
+        required: true
+      DD_MONITOR_APP_KEY:
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+  repository-projects: write
+jobs:
+  deploy:
+    name: Deploy Argo Application
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo mv kustomize /usr/local/bin
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
+
+      - name: Check out sources code
+        uses: actions/checkout@v4
+
+      - name: Create PR promote image tag
+        id: createPrId
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
+          SERVICE_NAME: ${{ inputs.service_name }}
+        run: |
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          # get the image tag
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
+          echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
+          
+          # create a new branch
+          git pull origin main
+          git checkout -b $NEW_BRANCH
+          
+          # merge specific file from main
+          git checkout main $KUSTOMIZATION_PATH
+          yq e -i '.images[0].newTag= env(IMAGE_TAG)' $KUSTOMIZATION_PATH
+          git add $KUSTOMIZATION_PATH
+          
+          numOfFilesChanged=$( git diff --name-only origin/main | wc -l )
+          echo "The number of files is different between the branches $NEW_BRANCH and main: $numOfFilesChanged"
+          
+          if [ $numOfFilesChanged -gt 0 ]; then
+            # push the change to the new branch
+            git commit -m "Update image tag of ${{ inputs.environment }} environment"
+            git push -u origin $NEW_BRANCH
+            
+            #create pr
+            gh pr create \
+              -B main \
+              -H $NEW_BRANCH\
+              --title "Promote deploy ${{ inputs.environment }} environment" \
+              --body "Automatically created by GitHub Actions" \
+
+          fi
+
+      - name: Merge PR
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN   }}
+          NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
+        run: |
+          gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
+      
+      - name: Mute Monitors
+        continue-on-error: true  
+        uses: raviocom/datadog-downtime-action@v1
+        with:
+          downtime-minutes: 10
+          scope: '["service:${{ inputs.service_name }}"]'
+          message: "Muting monitors for ${{ inputs.service_name }} deployment"
+          api-key: ${{ secrets.DD_API_KEY }}
+          app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
+
+      - name: Deploy Application
+        env:
+          APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
+          APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          SERVER_ADDRESS: argo.dep.icariohealth.io
+        run: |
+          kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
+          argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert

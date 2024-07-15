@@ -2,6 +2,13 @@ name: "Terraform Apply for Monitor Rules"
 
 on: 
   workflow_call:
+    inputs:
+      reset:
+        type: string
+        description: Reset Montiors (destroy & recreate)
+        # this should be false. Do not change.  This flag is here to DRY workflows and is 
+        # meant to be used by the manual-monitors.yaml workflow
+        default: false
     secrets:
       DD_API_KEY:
         required: true
@@ -57,6 +64,11 @@ jobs:
       - name: Terraform validate
         id: validate
         run: terraform validate
+
+      - name: Terraform Destroy
+        if: ${{ inputs.reset == 'true' }}
+        id: destroy
+        run: terraform destroy -auto-approve -input=false
 
       - name: Terraform plan
         id: plan

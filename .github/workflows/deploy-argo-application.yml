@@ -12,6 +12,10 @@ on:
         type: string
         description: service name
         required: true
+      semantic_new_release_version:
+        type: string
+        description: the semantic release version
+        required: false
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
@@ -19,6 +23,10 @@ on:
         required: true
       DD_MONITOR_APP_KEY:
         required: true
+    outputs:
+      semantic_new_release_version:
+        description: the semantic release version
+        value: ${{ jobs.deploy.outputs.semantic_new_release_version }}
 
 permissions:
   id-token: write
@@ -30,6 +38,8 @@ jobs:
     name: Deploy Argo Application
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
+    outputs:
+      semantic_new_release_version: ${{ steps.semantic.outputs.new_release_git_tag }}
     steps:
       - name: Install dependencies
         run: |
@@ -43,6 +53,10 @@ jobs:
 
       - name: Check out sources code
         uses: actions/checkout@v4
+
+      - name: Extract branch name
+        id: extract_branch
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Create PR promote image tag
         id: createPrId
@@ -62,16 +76,20 @@ jobs:
           export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
           
           # create a new branch
-          git pull origin main
+          git pull origin ${{ steps.extract_branch.outputs.branch }}
           git checkout -b $NEW_BRANCH
           
-          # merge specific file from main
-          git checkout main $KUSTOMIZATION_PATH
+          # merge specific file from ${{ steps.extract_branch.outputs.branch }}
+          git checkout ${{ steps.extract_branch.outputs.branch }} $KUSTOMIZATION_PATH
           yq e -i '.images[0].newTag= env(IMAGE_TAG)' $KUSTOMIZATION_PATH
           git add $KUSTOMIZATION_PATH
+          if [ "${{ inputs.environment }}" != 'tst' ]; then
+            yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/prd/kustomization.yaml
+            git add manifests/overlays/prd/kustomization.yaml
+          fi
           
-          numOfFilesChanged=$( git diff --name-only origin/main | wc -l )
-          echo "The number of files is different between the branches $NEW_BRANCH and main: $numOfFilesChanged"
+          numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )
+          echo "The number of files is different between the branches $NEW_BRANCH and ${{ steps.extract_branch.outputs.branch }}: $numOfFilesChanged"
           
           if [ $numOfFilesChanged -gt 0 ]; then
             # push the change to the new branch
@@ -80,7 +98,7 @@ jobs:
             
             #create pr
             gh pr create \
-              -B main \
+              -B ${{ steps.extract_branch.outputs.branch }} \
               -H $NEW_BRANCH\
               --title "Promote deploy ${{ inputs.environment }} environment" \
               --body "Automatically created by GitHub Actions" \
@@ -94,7 +112,33 @@ jobs:
           NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
         run: |
           gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
-      
+
+      - name: 'Release'
+        if: ${{ inputs.environment == 'tst' }}
+        uses: 'cycjimmy/semantic-release-action@v4'
+        id: semantic
+        with:
+          semantic_version: 24.0.0
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          extra_plugins: |
+            "@semantic-release/github"
+            "@semantic-release/changelog"
+            "@semantic-release/git"
+            "@semantic-release/exec"
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
+
+      - name: Determine target revision
+        id: determine_revision
+        run: |
+          if [[ "${{ steps.semantic.outputs.new_release_published }}" == 'true' ]]; then
+            echo "target_revision=${{ steps.semantic.outputs.new_release_git_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.semantic_new_release_version }}" != '' ]]; then
+            echo "target_revision=${{ inputs.semantic_new_release_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "target_revision=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Mute Monitors
         continue-on-error: true  
         uses: raviocom/datadog-downtime-action@v1
@@ -111,6 +155,8 @@ jobs:
           APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
           SERVER_ADDRESS: argo.dep.icariohealth.io
+          TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
         run: |
+          echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
           kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
           argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert

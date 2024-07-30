@@ -1,0 +1,68 @@
+
+---
+name: Rollback release
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        description: environment to deploy
+        required: true
+      version:
+        type: string
+        description: release version
+        required: true
+    secrets:
+      ARGOCD_AUTH_TOKEN:
+        required: true
+
+jobs:
+  validateInputs:
+    name: Validate inputs
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Check out sources code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate the input value
+        run: |
+          echo "Validate the value: '$VERSION'"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Version: '$VERSION' is valid"
+          else
+            echo "Version: '$VERSION' is invalid"
+            exit 1
+          fi
+
+  rollbackRelease:
+    needs: validateInputs
+    name: Rollback release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo mv kustomize /usr/local/bin
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
+
+      - name: Check out sources code
+        uses: actions/checkout@v4
+      
+      - name: Deploy Application
+        env:
+          APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
+          APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          SERVER_ADDRESS: argo.dep.icariohealth.io
+        run: |
+          echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '${{ inputs.version }}'" >> $APPLICATION_PATH/application.yaml
+          kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
+          argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert

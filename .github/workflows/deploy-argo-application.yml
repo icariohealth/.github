@@ -83,9 +83,18 @@ jobs:
           git checkout ${{ steps.extract_branch.outputs.branch }} $KUSTOMIZATION_PATH
           yq e -i '.images[0].newTag= env(IMAGE_TAG)' $KUSTOMIZATION_PATH
           git add $KUSTOMIZATION_PATH
-          if [ "${{ inputs.environment }}" != 'tst' ]; then
+
+          # Update the development-patch.yaml file with the IMAGE_TAG_VERSION
+          yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${{ inputs.environment }}/development-patch.yaml
+          git add manifests/overlays/${{ inputs.environment }}/development-patch.yaml
+
+          if [ "${{ inputs.environment }}" == 'tst' ]; then
             yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/prd/kustomization.yaml
             git add manifests/overlays/prd/kustomization.yaml
+
+            # Update the prd environment's development-patch.yaml file with the IMAGE_TAG_VERSION
+            yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/prd/development-patch.yaml
+            git add manifests/overlays/prd/development-patch.yaml
           fi
           
           numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )

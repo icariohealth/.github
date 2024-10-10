@@ -89,6 +89,13 @@ jobs:
           git add manifests/overlays/${{ inputs.environment }}/development-patch.yaml
 
           if [ "${{ inputs.environment }}" == 'tst' ]; then
+            yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/stg/kustomization.yaml
+            git add manifests/overlays/stg/kustomization.yaml
+
+            # Update the stg environment's development-patch.yaml file with the IMAGE_TAG_VERSION
+            yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/stg/development-patch.yaml
+            git add manifests/overlays/stg/development-patch.yaml
+
             yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/prd/kustomization.yaml
             git add manifests/overlays/prd/kustomization.yaml
 

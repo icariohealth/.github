@@ -39,7 +39,7 @@ jobs:
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     outputs:
-      semantic_new_release_version: ${{ steps.semantic.outputs.new_release_git_tag }}
+      semantic_new_release_version: ${{ steps.determine_revision.outputs.target_revision }}
     steps:
       - name: Install dependencies
         run: |

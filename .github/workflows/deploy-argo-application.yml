@@ -58,12 +58,45 @@ jobs:
         id: extract_branch
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
+      - name: Dry-run Release Git Client Setup
+        if: ${{ inputs.environment == 'tst' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git pull origin ${{ steps.extract_branch.outputs.branch }}
+
+      - name: 'Dry-run Release'
+        if: ${{ inputs.environment == 'tst' }}
+        uses: 'cycjimmy/semantic-release-action@v4'
+        id: dry_run_semantic
+        with:
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          dry_run: true
+          extra_plugins: |
+            "@semantic-release/github"
+            "@semantic-release/changelog"
+            "@semantic-release/git"
+            "@semantic-release/exec"
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
+
+      - name: Dry-run Release Cleanup
+        if: ${{ inputs.environment == 'tst' }}
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm cache clean --force
+
       - name: Create PR promote image tag
         id: createPrId
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
           SERVICE_NAME: ${{ inputs.service_name }}
+          SEMANTIC_NEW_RELEASE_VERSION: ${{ steps.dry_run_semantic.outputs.new_release_git_tag }}
         run: |
           # configure git client
           git config user.name github-actions
@@ -88,20 +121,17 @@ jobs:
           yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${{ inputs.environment }}/development-patch.yaml
           git add manifests/overlays/${{ inputs.environment }}/development-patch.yaml
 
-          if [ "${{ inputs.environment }}" == 'tst' ]; then
-            yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/stg/kustomization.yaml
-            git add manifests/overlays/stg/kustomization.yaml
+          if [ "${{ inputs.environment }}" == 'tst' ] && [ -n "$SEMANTIC_NEW_RELEASE_VERSION" ]; then
+            ENVIRONMENTS=("tst" "prgconf" "stg" "prd")
+            for ENV in "${ENVIRONMENTS[@]}"; do
+              yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/${ENV}/kustomization.yaml
+              git add manifests/overlays/${ENV}/kustomization.yaml
 
-            # Update the stg environment's development-patch.yaml file with the IMAGE_TAG_VERSION
-            yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/stg/development-patch.yaml
-            git add manifests/overlays/stg/development-patch.yaml
-
-            yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/prd/kustomization.yaml
-            git add manifests/overlays/prd/kustomization.yaml
-
-            # Update the prd environment's development-patch.yaml file with the IMAGE_TAG_VERSION
-            yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/prd/development-patch.yaml
-            git add manifests/overlays/prd/development-patch.yaml
+              # Update the development-patch.yaml file
+              yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${ENV}/development-patch.yaml
+              yq e -i '(.[] | select(.path == "/spec/template/metadata/labels/tags.datadoghq.com~1version").value) = env(SEMANTIC_NEW_RELEASE_VERSION)' manifests/overlays/${ENV}/development-patch.yaml
+              git add manifests/overlays/${ENV}/development-patch.yaml
+            done
           fi
           
           numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )
@@ -134,7 +164,6 @@ jobs:
         uses: 'cycjimmy/semantic-release-action@v4'
         id: semantic
         with:
-          semantic_version: 24.0.0
           branch: ${{ steps.extract_branch.outputs.branch }}
           extra_plugins: |
             "@semantic-release/github"
@@ -151,8 +180,10 @@ jobs:
             echo "target_revision=${{ steps.semantic.outputs.new_release_git_tag }}" >> $GITHUB_OUTPUT
           elif [[ "${{ inputs.semantic_new_release_version }}" != '' ]]; then
             echo "target_revision=${{ inputs.semantic_new_release_version }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.environment }}" == 'dev' ]]; then
+            echo "target_revision=main" >> $GITHUB_OUTPUT
           else
-            echo "target_revision=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
+            echo "target_revision=" >> $GITHUB_OUTPUT
           fi
 
       - name: Mute Monitors
@@ -173,6 +204,14 @@ jobs:
           SERVER_ADDRESS: argo.dep.icariohealth.io
           TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
         run: |
-          echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
-          kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
-          argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert
+          if [ -n "$TARGET_REVISION" ]; then
+            echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
+            kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
+            argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert
+          else
+            echo -e "::warning:: Deploy Announcement:"
+            echo -e "::warning:: The release has been not deployed, it appears there are no commits following the conventional commit guidelines for this release."
+            echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
+            echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
+            echo -e "::warning:: Thank you!"
+          fi

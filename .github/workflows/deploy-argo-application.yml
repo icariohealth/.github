@@ -73,6 +73,7 @@ jobs:
         uses: 'cycjimmy/semantic-release-action@v4'
         id: dry_run_semantic
         with:
+          semantic_version: 24.0.0
           branch: ${{ steps.extract_branch.outputs.branch }}
           dry_run: true
           extra_plugins: |
@@ -164,6 +165,7 @@ jobs:
         uses: 'cycjimmy/semantic-release-action@v4'
         id: semantic
         with:
+          semantic_version: 24.0.0
           branch: ${{ steps.extract_branch.outputs.branch }}
           extra_plugins: |
             "@semantic-release/github"

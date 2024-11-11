@@ -23,6 +23,8 @@ on:
         required: true
       DD_MONITOR_APP_KEY:
         required: true
+      PAT_TOKEN:
+        required: false
     outputs:
       semantic_new_release_version:
         description: the semantic release version
@@ -154,9 +156,13 @@ jobs:
       - name: Merge PR
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN   }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
         run: |
+          if [ -n "$PAT_TOKEN" ]; then
+            echo $PAT_TOKEN | gh auth login --with-token
+          fi
           gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
 
       - name: 'Release'

@@ -105,7 +105,7 @@ jobs:
           git config user.email github-actions@github.com
 
           # get the image tag
-          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          calculatedSha=$(git rev-parse --short=8 ${{ github.sha }})
           export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
           echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
           export IMAGE_TAG=$SERVICE_NAME-$calculatedSha

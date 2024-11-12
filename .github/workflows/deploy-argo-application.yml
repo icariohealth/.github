@@ -161,6 +161,7 @@ jobs:
           NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
         run: |
           if [ -n "$PAT_TOKEN" ]; then
+            unset GITHUB_TOKEN
             echo $PAT_TOKEN | gh auth login --with-token
           fi
           gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch

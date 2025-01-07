@@ -181,6 +181,8 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
 
       - name: Determine target revision
+        env:
+         BRANCH: ${{ steps.extract_branch.outputs.branch }}
         id: determine_revision
         run: |
           if [[ "${{ steps.semantic.outputs.new_release_published }}" == 'true' ]]; then
@@ -188,7 +190,7 @@ jobs:
           elif [[ "${{ inputs.semantic_new_release_version }}" != '' ]]; then
             echo "target_revision=${{ inputs.semantic_new_release_version }}" >> $GITHUB_OUTPUT
           elif [[ "${{ inputs.environment }}" == 'dev' ]]; then
-            echo "target_revision=main" >> $GITHUB_OUTPUT
+            echo "target_revision=$BRANCH" >> $GITHUB_OUTPUT
           else
             echo "target_revision=" >> $GITHUB_OUTPUT
           fi
@@ -256,4 +258,5 @@ jobs:
             echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
             echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
             echo -e "::warning:: Thank you!"
+            exit 1
           fi

@@ -263,52 +263,53 @@ jobs:
             exit 1
           fi
       - name: Notify Teams Channel After Deployment
-        if: ${{ secrets.TEAMS_WEBHOOK_URL != '' }}
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
         run: |
-          curl -X POST "$TEAMS_WEBHOOK_URL" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "type":"message",
-              "attachments":[
-                {
-                  "contentType": "application/vnd.microsoft.card.adaptive",
-                  "contentUrl": null,
-                  "content": {
-                    "type": "AdaptiveCard",
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "version": "1.5",
-                    "body": [
-                      {
-                        "type": "TextBlock",
-                        "text": "Deployment Approved and Applied",
-                        "wrap": true,
-                        "style": "heading"
-                      },
-                      {
-                        "type": "FactSet",
-                        "facts": [
-                          {
-                            "title": "Service:",
-                            "value": "${{ inputs.service_name }}"
-                          },
-                          {
-                            "title": "Environment:",
-                            "value": "${{ inputs.environment }}"
-                          },
-                          {
-                            "title": "Release tag version/Branch",
-                            "value": "${{ steps.determine_revision.outputs.target_revision }}"
-                          },
-                          {
-                            "title": "Approved By:",
-                            "value": "${{ github.actor }}"
-                          }
-                        ]
-                      }
-                    ]
+          if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+            curl -X POST "$TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Deployment Approved and Applied",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Environment:",
+                              "value": "${{ inputs.environment }}"
+                            },
+                            {
+                              "title": "Release tag version/Branch",
+                              "value": "${{ steps.determine_revision.outputs.target_revision }}"
+                            },
+                            {
+                              "title": "Approved By:",
+                              "value": "${{ github.actor }}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
                   }
-                }
-              ]
-            }' || true
+                ]
+              }' || true
+          fi

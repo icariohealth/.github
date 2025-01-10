@@ -25,6 +25,8 @@ on:
         required: true
       PAT_TOKEN:
         required: false
+      TEAMS_WEBHOOK_URL:
+        required: false
     outputs:
       semantic_new_release_version:
         description: the semantic release version
@@ -259,4 +261,55 @@ jobs:
             echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
             echo -e "::warning:: Thank you!"
             exit 1
+          fi
+      - name: Notify Teams Channel After Deployment
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
+        run: |
+          if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+            curl -X POST "$TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Deployment Approved and Applied",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Environment:",
+                              "value": "${{ inputs.environment }}"
+                            },
+                            {
+                              "title": "Release tag version/Branch",
+                              "value": "${{ steps.determine_revision.outputs.target_revision }}"
+                            },
+                            {
+                              "title": "Approved By:",
+                              "value": "${{ github.actor }}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }' || true
           fi

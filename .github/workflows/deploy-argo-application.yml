@@ -91,7 +91,6 @@ jobs:
         if: ${{ inputs.environment == 'tst' }}
         run: |
           rm -rf node_modules
-          rm -f package-lock.json
           npm cache clean --force
 
       - name: Create PR promote image tag

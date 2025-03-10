@@ -3,6 +3,9 @@ name: 'Playwright E2E Tests'
 on:
   workflow_call:
     inputs:
+      environment:
+        type: string
+        required: true
       shared_ecr_repository:
         type: string
         required: true
@@ -25,6 +28,7 @@ env:
 jobs:
   e2e-tests:
     name: 'playwright-test'
+    environment: ${{ inputs.environment }}
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'Checkout repository'

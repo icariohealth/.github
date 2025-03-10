@@ -1,0 +1,52 @@
+---
+name: 'Playwright E2E Tests'
+on:
+  workflow_call:
+    inputs:
+      shared_ecr_repository:
+        type: string
+        required: true
+      service_name:
+        type: string
+        required: true
+    secrets:
+      AWS_REGION:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+env:
+  PW_TEST_HTML_REPORT_OPEN: 'never'
+  ECR_REPOSITORY: ${{ inputs.shared_ecr_repository }}
+  SERVICE_NAME: ${{ inputs.service_name }}
+
+jobs:
+  e2e-tests:
+    name: 'playwright-test'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Checkout repository'
+        uses: 'actions/checkout@v4'
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Pull image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest
+          docker run --rm -v $(pwd)/playwright-report:/app/playwright-report $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest -c "npx playwright test"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

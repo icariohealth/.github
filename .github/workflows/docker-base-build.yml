@@ -1,0 +1,57 @@
+---
+name: Build image - Push to ECR
+on:
+  workflow_call:
+    inputs:
+      shared_ecr_repository:
+        type: string
+        description: environment to deploy
+        required: true
+      service_name:
+        type: string
+        description: service name
+        required: true
+    secrets:
+      AWS_REGION:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+permissions:
+  id-token: write
+  contents: read
+env:
+  ECR_REPOSITORY: ${{ inputs.shared_ecr_repository }}
+  SERVICE_NAME: ${{ inputs.service_name }}
+
+jobs:
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out sources code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Set image tag
+      run: |
+        echo "IMAGE_TAG=$(git rev-parse --short=8 ${{ github.sha }})" >> $GITHUB_ENV
+
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-${{ env.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest --build-arg DD_GIT_COMMIT_SHA=$(git rev-parse HEAD) --build-arg DD_GIT_REPOSITORY_URL=github.com/${{github.repository}} .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY -a

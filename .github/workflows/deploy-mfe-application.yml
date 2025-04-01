@@ -1,0 +1,77 @@
+---
+name: Deploy MFE Application
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        description: environment to deploy
+        required: true
+      bucket_name:
+        type: string
+        description: s3 bucket name
+        required: true
+      service_name:
+        type: string
+        description: mfe service name
+        required: true
+    secrets:
+      AWS_ACCESS_KEY:
+        required: true
+      AWS_SECRET_KEY:
+        required: true
+      AWS_REGION:
+        required: true
+      AWS_ROLE_ARN:
+        required: true
+      AWS_DISTRIBUTION_ID:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy MFE Application
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out sources code
+        uses: actions/checkout@v4
+
+      - name: 'Release'
+        if: ${{ inputs.environment == 'tst' }}
+        uses: 'cycjimmy/semantic-release-action@v4'
+        id: semantic
+        with:
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          extra_plugins: |
+            "@semantic-release/github"
+            "@semantic-release/changelog"
+            "@semantic-release/git"
+            "@semantic-release/exec"
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+
+      - name: Install package
+        run: npm install
+
+      - name: Build package
+        run: npm run build
+
+      - name: Extract version from package.json
+        id: package_version
+        run: echo "{VERSION}={$(node -p "require('./package.json').version")}" >> $GITHUB_OUTPUT
+      
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-skip-session-tagging: true
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: '${{ secrets.AWS_ROLE_ARN }}'
+
+      - name: Deploy to S3
+        run: aws s3 sync dist s3://${{ inputs.bucket_name }}/${{ inputs.service_name }}/${{ steps.package_version.outputs.VERSION }}
+      
+      - name: Create invalidation
+        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_DISTRIBUTION_ID }} --paths "/${{ inputs.service_name }}/${{ steps.package_version.outputs.VERSION }}/remoteEntry.js"

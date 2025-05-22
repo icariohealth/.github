@@ -21,7 +21,8 @@ permissions:
 
 jobs:
   CommitLint:
-    runs-on: ubuntu-latest
+    runs-on:
+      group: cloud
     steps:
       - name: 'Checkout repository'
         uses: 'actions/checkout@v4'
@@ -45,7 +46,8 @@ jobs:
 
   RunUnitTest:
     needs: CommitLint
-    runs-on: ubuntu-latest
+    runs-on:
+      group: cloud
     steps:
       - name: Check out sources code
         uses: actions/checkout@v4
@@ -67,7 +69,8 @@ jobs:
 
   RunIntegrationTest:
     needs: RunUnitTest
-    runs-on: ubuntu-latest
+    runs-on:
+      group: cloud
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 21
@@ -85,7 +88,8 @@ jobs:
           ./gradlew clean integrationTest
   RunSonarScan:
    needs: RunIntegrationTest
-   runs-on: ubuntu-latest
+   runs-on:
+     group: cloud
    permissions: read-all
    steps:
      - uses: actions/checkout@v4

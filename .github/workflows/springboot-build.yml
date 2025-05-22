@@ -32,7 +32,8 @@ env:
 jobs:
   build:
     name: Build Image
-    runs-on: ubuntu-latest
+    runs-on:
+      group: cloud
 
     steps:
     - name: Check out sources code

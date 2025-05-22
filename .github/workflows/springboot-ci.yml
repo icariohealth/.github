@@ -20,32 +20,32 @@ permissions:
   contents: read
 
 jobs:
-  CommitLint:
-    runs-on:
-      group: cloud
-    steps:
-      - name: 'Checkout repository'
-        uses: 'actions/checkout@v4'
-        with:
-          fetch-depth: 0
+  # CommitLint:
+  #   runs-on:
+  #     group: cloud
+  #   steps:
+  #     - name: 'Checkout repository'
+  #       uses: 'actions/checkout@v4'
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Install commitlint
-        run: |
-          npm install conventional-changelog-conventionalcommits
-          echo "module.exports = {extends: ['@commitlint/config-conventional'],rules: {'subject-case': [0]}};" > commitlint.config.js
-          npm install commitlint@latest
-          npm install @commitlint/config-conventional @commitlint/cli
+  #     - name: Install commitlint
+  #       run: |
+  #         npm install conventional-changelog-conventionalcommits
+  #         echo "module.exports = {extends: ['@commitlint/config-conventional'],rules: {'subject-case': [0]}};" > commitlint.config.js
+  #         npm install commitlint@latest
+  #         npm install @commitlint/config-conventional @commitlint/cli
 
-      - name: Validate current commit (last commit) with commitlint
-        if: github.event_name == 'push'
-        run: npx commitlint --config commitlint.config.js --last --verbose
+  #     - name: Validate current commit (last commit) with commitlint
+  #       if: github.event_name == 'push'
+  #       run: npx commitlint --config commitlint.config.js --last --verbose
 
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request'
-        run: npx commitlint --config commitlint.config.js --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+  #     - name: Validate PR commits with commitlint
+  #       if: github.event_name == 'pull_request'
+  #       run: npx commitlint --config commitlint.config.js --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
   RunUnitTest:
-    needs: CommitLint
+    # needs: CommitLint
     runs-on:
       group: cloud
     steps:

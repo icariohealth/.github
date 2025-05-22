@@ -61,9 +61,9 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+    # - name: Login to Amazon ECR
+    #   id: login-ecr
+    #   uses: aws-actions/amazon-ecr-login@v2
 
     - name: Set image tag
       run: |
@@ -71,7 +71,8 @@ jobs:
 
     - name: Build, tag, and push image to Amazon ECR
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: 062864719408.dkr.ecr.us-east-1.amazonaws.com
+        # ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-${{ env.IMAGE_TAG }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$SERVICE_NAME-latest --build-arg DD_GIT_COMMIT_SHA=$(git rev-parse HEAD) --build-arg DD_GIT_REPOSITORY_URL=github.com/${{github.repository}} .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY -a

@@ -48,4 +48,4 @@ jobs:
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
           SERVER_ADDRESS: argo.dep.icariohealth.io
         run: |
-          argocd app delete $APPLICATION_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS
+          argocd app delete $APPLICATION_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --cascade 

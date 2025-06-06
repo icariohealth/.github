@@ -8,10 +8,6 @@ on:
         type: string
         description: environment to deploy
         required: true
-      version:
-        type: string
-        description: release version
-        required: true
       appname:
         type: string
         required: true
@@ -23,24 +19,11 @@ jobs:
   validateInputs:
     name: Validate inputs
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ inputs.version }}
     steps:
       - name: Check out sources code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Validate the input value
-        run: |
-          echo "Validate the value: '$VERSION'"
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
-            echo "Version: '$VERSION' is valid"
-          else
-            echo "Version: '$VERSION' is invalid"
-            exit 1
-          fi
-
   deleteArgoCD:
     needs: validateInputs
     name: Rollback release

@@ -12,6 +12,9 @@ on:
         type: string
         description: release version
         required: true
+      appname:
+        type: string
+        required: true
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
@@ -38,7 +41,7 @@ jobs:
             exit 1
           fi
 
-  rollbackRelease:
+  deleteArgoCD:
     needs: validateInputs
     name: Rollback release
     runs-on: ubuntu-latest
@@ -58,11 +61,8 @@ jobs:
       
       - name: Deploy Application
         env:
-          APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
-          APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
+          APPLICATION_NAME: ${{ inputs.environment }}-${{ inputs.appname }}
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
           SERVER_ADDRESS: argo.dep.icariohealth.io
         run: |
-          echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '${{ inputs.version }}'" >> $APPLICATION_PATH/application.yaml
-          kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
-          argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert
+          argocd app delete $APPLICATION_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS

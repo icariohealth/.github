@@ -101,6 +101,7 @@ jobs:
           KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
           SERVICE_NAME: ${{ inputs.service_name }}
           SEMANTIC_NEW_RELEASE_VERSION: ${{ steps.dry_run_semantic.outputs.new_release_git_tag }}
+          MANIFEST_PATH: manifest.yaml
         run: |
           # configure git client
           git config user.name github-actions
@@ -110,6 +111,7 @@ jobs:
           calculatedSha=$(git rev-parse --short=8 ${{ github.sha }})
           export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
           echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=$calculatedSha" >> $GITHUB_OUTPUT
           export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
           
           # create a new branch
@@ -136,6 +138,12 @@ jobs:
               yq e -i '(.[] | select(.path == "/spec/template/metadata/labels/tags.datadoghq.com~1version").value) = env(SEMANTIC_NEW_RELEASE_VERSION)' manifests/overlays/${ENV}/development-patch.yaml
               git add manifests/overlays/${ENV}/development-patch.yaml
             done
+          fi
+
+          if [ "${{ inputs.environment }}" == 'dev' ]; then
+            yq -i '.name = "$SERVICE_NAME"' $MANIFEST_PATH
+            yq -i '.version = "$calculatedSha"' $MANIFEST_PATH
+            git add $MANIFEST_PATH
           fi
           
           numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )
@@ -208,6 +216,7 @@ jobs:
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Deploy Application
+        id: deploy-application
         env:
           APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
           APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
@@ -244,6 +253,7 @@ jobs:
 
             deploy_with_retries
             exit_code=$?
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
 
             set -e
             if [ $exit_code -eq 0 ]; then
@@ -262,6 +272,36 @@ jobs:
             echo -e "::warning:: Thank you!"
             exit 1
           fi
+
+      - name: 
+        if: steps.deploy-application.outputs.exit_code = 0
+        uses: actions/checkout@v4
+        env:
+          ORG: icariohealth
+          DEPLOYED_REPO: deployed-service-versions
+          WORKING_DIR: deployed-services
+        with:
+          repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
+          token: ${{ secrets.PAT_TOKEN }}
+          path: ${{ env.WORKING_DIR }}
+
+      - name: Store deployment version
+        if: steps.deploy-application.outputs.exit_code = 0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          # update latest deployment version to environment ${{ inputs.environment }}
+          yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = "$step.createPrId.outpus.COMMIT_HASH"' ${{ inputs.environment }}/versions.yaml
+          git add ${{ inputs.environment }}/versions.yaml
+          git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
+          git push -u origin HEAD
+
       - name: Notify Teams Channel After Deployment
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}

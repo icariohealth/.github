@@ -274,7 +274,7 @@ jobs:
             exit 1
           fi
 
-      - name: 
+      - name: Checkout tracker repository
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         uses: actions/checkout@v4
         env:
@@ -291,7 +291,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        working-directory: ${{ env.WORKING_DIR }}
+        working-directory: ${{ env.WORKING_DIR }}/${{ env.DEPLOYED_REPO }}
         run: |
           # configure git client
           git config user.name github-actions

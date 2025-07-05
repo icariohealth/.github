@@ -142,8 +142,8 @@ jobs:
 
           if [ "${{ inputs.environment }}" == 'dev' ]; then
             touch $MANIFEST_PATH
-            yq -i '.name = $SERVICE_NAME' $MANIFEST_PATH
-            yq -i '.version = $calculatedSha' $MANIFEST_PATH
+            yq -i '.name = env(SERVICE_NAME)' $MANIFEST_PATH
+            yq -i '.version = env(calculatedSha)' $MANIFEST_PATH
             git add $MANIFEST_PATH
           fi
           
@@ -299,7 +299,7 @@ jobs:
           # git config user.email github-actions@github.com
 
           # update latest deployment version to environment ${{ inputs.environment }}
-          yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = ${{ step.createPrId.outpus.COMMIT_HASH }}' ${{ inputs.environment }}/versions.yaml
+          yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = ${{ steps.createPrId.outpus.COMMIT_HASH }}' ${{ inputs.environment }}/versions.yaml
           git add ${{ inputs.environment }}/versions.yaml
           git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
           git push -u origin HEAD

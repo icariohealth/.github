@@ -293,12 +293,13 @@ jobs:
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         working-directory: ${{ env.WORKING_DIR }}/${{ env.DEPLOYED_REPO }}
         run: |
+          pwd && ls -la
           # configure git client
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          # git config user.name github-actions
+          # git config user.email github-actions@github.com
 
           # update latest deployment version to environment ${{ inputs.environment }}
-          yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = "$step.createPrId.outpus.COMMIT_HASH"' ${{ inputs.environment }}/versions.yaml
+          yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = ${{ step.createPrId.outpus.COMMIT_HASH }}' ${{ inputs.environment }}/versions.yaml
           git add ${{ inputs.environment }}/versions.yaml
           git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
           git push -u origin HEAD

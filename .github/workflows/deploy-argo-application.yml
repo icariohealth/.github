@@ -285,13 +285,13 @@ jobs:
           WORKING_DIR: deployed-services
         with:
           repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DHP_PROMOTER_PAT_TOKEN }}
           path: ${{ env.WORKING_DIR }}
 
       - name: Store deployment version
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DHP_PROMOTER_PAT_TOKEN }}
           WORKING_DIR: deployed-services
         working-directory: ${{ env.WORKING_DIR }}
         run: |

@@ -286,7 +286,7 @@ jobs:
           WORKING_DIR: deployed-services
         with:
           repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           path: ${{ env.WORKING_DIR }}
 
       - name: Store deployment version

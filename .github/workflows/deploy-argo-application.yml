@@ -142,8 +142,8 @@ jobs:
 
           if [ "${{ inputs.environment }}" == 'dev' ]; then
             touch $MANIFEST_PATH
-            yq -i '.name = \"${{ env.SERVICE_NAME }}\"' $MANIFEST_PATH
-            yq -i '.version = \"$calculatedSha\"' $MANIFEST_PATH
+            yq -i '.name = "${{ env.SERVICE_NAME }}"' $MANIFEST_PATH
+            yq -i ".version = \"$calculatedSha\"" $MANIFEST_PATH
             git add $MANIFEST_PATH
           fi
           

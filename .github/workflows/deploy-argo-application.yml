@@ -290,7 +290,7 @@ jobs:
       - name: Store deployment version
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           WORKING_DIR: deployed-services
         working-directory: ${{ env.WORKING_DIR }}
         run: |

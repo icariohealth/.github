@@ -293,10 +293,9 @@ jobs:
           WORKING_DIR: deployed-services
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          ls -la dev
           # configure git client
-          # git config user.name github-actions
-          # git config user.email github-actions@github.com
+          git config user.name github-actions
+          git config user.email github-actions@github.com
 
           # update latest deployment version to environment ${{ inputs.environment }}
           yq -i '.${{ inputs.service_name }}.${{ steps.determine_revision.outputs.target_revision }} = "${{ steps.createPrId.outputs.COMMIT_HASH }}"' ${{ inputs.environment }}/versions.yaml

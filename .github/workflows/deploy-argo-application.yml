@@ -294,6 +294,11 @@ jobs:
           WORKING_DIR: deployed-services
         working-directory: ${{ env.WORKING_DIR }}
         run: |
+          if [ -n "$PAT_TOKEN" ]; then
+            unset GITHUB_TOKEN
+            echo $PAT_TOKEN | gh auth login --with-token
+          fi
+          
           # configure git client
           git config user.name github-actions
           git config user.email github-actions@github.com

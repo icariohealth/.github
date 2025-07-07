@@ -25,6 +25,8 @@ on:
         required: true
       PAT_TOKEN:
         required: false
+      MY_PAT_TOKEN:
+        required: false
       TEAMS_WEBHOOK_URL:
         required: false
     outputs:
@@ -284,14 +286,14 @@ jobs:
           WORKING_DIR: deployed-services
         with:
           repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ secrets.MY_PAT_TOKEN || secrets.PAT_TOKEN }}
           path: ${{ env.WORKING_DIR }}
 
       - name: Store deployment version
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PATH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PAT_TOKEN: ${{ secrets.MY_PAT_TOKEN || secrets.PAT_TOKEN }}
           WORKING_DIR: deployed-services
         working-directory: ${{ env.WORKING_DIR }}
         run: |

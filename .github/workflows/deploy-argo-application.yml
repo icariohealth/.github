@@ -290,10 +290,9 @@ jobs:
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-        working-directory: ${{ env.WORKING_DIR }}/${{ env.DEPLOYED_REPO }}
+          WORKING_DIR: deployed-services
+        working-directory: ${{ env.WORKING_DIR }}
         run: |
-          pwd && ls -la
           ls -la dev
           # configure git client
           # git config user.name github-actions

@@ -322,7 +322,7 @@ jobs:
           git config user.email github-actions@github.com
 
           # update latest deployment version to environment ${{ inputs.environment }}
-          yq '.["${{ inputs.service_name }}"]["${{ steps.determine_revision.outputs.target_revision }}"] = "${{ steps.createPrId.outputs.COMMIT_HASH }}"' -i ${{ inputs.environment }}/versions.yaml
+          yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" = "${{ steps.createPrId.outputs.COMMIT_HASH }}"}' -i ${{ inputs.environment }}/versions.yaml
           git add ${{ inputs.environment }}/versions.yaml
           git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
           git push -u origin HEAD

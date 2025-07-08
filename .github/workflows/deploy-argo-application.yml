@@ -54,7 +54,6 @@ jobs:
       - name: Validate promotion
         id: validate_promotion
         if: ${{ inputs.environment != 'dev' }}
-        runs-on: ubuntu-latest
         uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
         with:
           from_env: ${{ inputs.previous_environment || 'dev' }}

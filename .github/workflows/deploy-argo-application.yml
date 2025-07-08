@@ -51,16 +51,6 @@ jobs:
     outputs:
       semantic_new_release_version: ${{ steps.determine_revision.outputs.target_revision }}
     steps:
-      - name: Validate promotion
-        id: validate_promotion
-        if: ${{ inputs.environment != 'dev' }}
-        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
-        with:
-          from_env: ${{ inputs.previous_environment || 'dev' }}
-          to_env: ${{ inputs.environment }}
-          service_name: ${{ inputs.service_name }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-
       - name: Install dependencies
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
@@ -233,8 +223,18 @@ jobs:
           api-key: ${{ secrets.DD_API_KEY }}
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
+      - name: Validate promotion
+        id: validate_promotion
+        if: ${{ inputs.environment != 'dev' }}
+        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
+        with:
+          from_env: ${{ inputs.previous_environment || 'dev' }}
+          to_env: ${{ inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
       - name: Deploy Application
-        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' }}
+        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}
         id: deploy-application
         env:
           APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}

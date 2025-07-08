@@ -53,330 +53,332 @@ jobs:
       from_env: ${{ inputs.previous_environment || 'dev' }}
       to_env: ${{ inputs.environment }}
       service_name: ${{ inputs.service_name }}
+    secrets:
+      DHP_PROMOTER_PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
   
-  # deploy:
-  #   name: Deploy Argo Application
-  #   needs: validate_promotion
-  #   if: ${{ needs.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev'}}
-  #   environment: ${{ inputs.environment }}
-  #   runs-on: ubuntu-latest
-  #   outputs:
-  #     semantic_new_release_version: ${{ steps.determine_revision.outputs.target_revision }}
-  #   steps:
-  #     - name: Install dependencies
-  #       run: |
-  #         curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
-  #         sudo mv kustomize /usr/local/bin
-  #         curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-  #         sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-  #         rm argocd-linux-amd64
-  #         sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-  #         sudo chmod a+x /usr/local/bin/yq
+  deploy:
+    name: Deploy Argo Application
+    needs: validate_promotion
+    if: ${{ needs.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev'}}
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    outputs:
+      semantic_new_release_version: ${{ steps.determine_revision.outputs.target_revision }}
+    steps:
+      - name: Install dependencies
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo mv kustomize /usr/local/bin
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
 
-  #     - name: Check out sources code
-  #       uses: actions/checkout@v4
+      - name: Check out sources code
+        uses: actions/checkout@v4
 
-  #     - name: Extract branch name
-  #       id: extract_branch
-  #       run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+      - name: Extract branch name
+        id: extract_branch
+        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
-  #     - name: Dry-run Release Git Client Setup
-  #       if: ${{ inputs.environment == 'tst' }}
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       run: |
-  #         # configure git client
-  #         git config user.name github-actions
-  #         git config user.email github-actions@github.com
-  #         git pull origin ${{ steps.extract_branch.outputs.branch }}
+      - name: Dry-run Release Git Client Setup
+        if: ${{ inputs.environment == 'tst' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git pull origin ${{ steps.extract_branch.outputs.branch }}
 
-  #     - name: 'Dry-run Release'
-  #       if: ${{ inputs.environment == 'tst' }}
-  #       uses: 'cycjimmy/semantic-release-action@v4'
-  #       id: dry_run_semantic
-  #       with:
-  #         branch: ${{ steps.extract_branch.outputs.branch }}
-  #         dry_run: true
-  #         extra_plugins: |
-  #           "@semantic-release/github"
-  #           "@semantic-release/changelog"
-  #           "@semantic-release/git"
-  #           "@semantic-release/exec"
-  #       env:
-  #         GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
+      - name: 'Dry-run Release'
+        if: ${{ inputs.environment == 'tst' }}
+        uses: 'cycjimmy/semantic-release-action@v4'
+        id: dry_run_semantic
+        with:
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          dry_run: true
+          extra_plugins: |
+            "@semantic-release/github"
+            "@semantic-release/changelog"
+            "@semantic-release/git"
+            "@semantic-release/exec"
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
 
-  #     - name: Dry-run Release Cleanup
-  #       if: ${{ inputs.environment == 'tst' }}
-  #       run: |
-  #         rm -rf node_modules
-  #         rm -f package-lock.json
-  #         npm cache clean --force
+      - name: Dry-run Release Cleanup
+        if: ${{ inputs.environment == 'tst' }}
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm cache clean --force
 
-  #     - name: Create PR promote image tag
-  #       id: createPrId
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
-  #         SERVICE_NAME: ${{ inputs.service_name }}
-  #         SEMANTIC_NEW_RELEASE_VERSION: ${{ steps.dry_run_semantic.outputs.new_release_git_tag }}
-  #         MANIFEST_PATH: manifest.yaml
-  #       run: |
-  #         # configure git client
-  #         git config user.name github-actions
-  #         git config user.email github-actions@github.com
+      - name: Create PR promote image tag
+        id: createPrId
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
+          SERVICE_NAME: ${{ inputs.service_name }}
+          SEMANTIC_NEW_RELEASE_VERSION: ${{ steps.dry_run_semantic.outputs.new_release_git_tag }}
+          MANIFEST_PATH: manifest.yaml
+        run: |
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
 
-  #         # get the image tag
-  #         calculatedSha=$(git rev-parse --short=8 ${{ github.sha }})
-  #         export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
-  #         echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
-  #         echo "COMMIT_HASH=$calculatedSha" >> $GITHUB_OUTPUT
-  #         export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
+          # get the image tag
+          calculatedSha=$(git rev-parse --short=8 ${{ github.sha }})
+          export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
+          echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=$calculatedSha" >> $GITHUB_OUTPUT
+          export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
           
-  #         # create a new branch
-  #         git pull origin ${{ steps.extract_branch.outputs.branch }}
-  #         git checkout -b $NEW_BRANCH
+          # create a new branch
+          git pull origin ${{ steps.extract_branch.outputs.branch }}
+          git checkout -b $NEW_BRANCH
           
-  #         # merge specific file from ${{ steps.extract_branch.outputs.branch }}
-  #         git checkout ${{ steps.extract_branch.outputs.branch }} $KUSTOMIZATION_PATH
-  #         yq e -i '.images[0].newTag= env(IMAGE_TAG)' $KUSTOMIZATION_PATH
-  #         git add $KUSTOMIZATION_PATH
+          # merge specific file from ${{ steps.extract_branch.outputs.branch }}
+          git checkout ${{ steps.extract_branch.outputs.branch }} $KUSTOMIZATION_PATH
+          yq e -i '.images[0].newTag= env(IMAGE_TAG)' $KUSTOMIZATION_PATH
+          git add $KUSTOMIZATION_PATH
 
-  #         # Update the development-patch.yaml file with the IMAGE_TAG_VERSION
-  #         yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${{ inputs.environment }}/development-patch.yaml
-  #         git add manifests/overlays/${{ inputs.environment }}/development-patch.yaml
+          # Update the development-patch.yaml file with the IMAGE_TAG_VERSION
+          yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${{ inputs.environment }}/development-patch.yaml
+          git add manifests/overlays/${{ inputs.environment }}/development-patch.yaml
 
-  #         if [ "${{ inputs.environment }}" == 'tst' ] && [ -n "$SEMANTIC_NEW_RELEASE_VERSION" ]; then
-  #           ENVIRONMENTS=("tst" "prgconf" "stg" "prd")
-  #           for ENV in "${ENVIRONMENTS[@]}"; do
-  #             yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/${ENV}/kustomization.yaml
-  #             git add manifests/overlays/${ENV}/kustomization.yaml
+          if [ "${{ inputs.environment }}" == 'tst' ] && [ -n "$SEMANTIC_NEW_RELEASE_VERSION" ]; then
+            ENVIRONMENTS=("tst" "prgconf" "stg" "prd")
+            for ENV in "${ENVIRONMENTS[@]}"; do
+              yq e -i '.images[0].newTag= env(IMAGE_TAG)' manifests/overlays/${ENV}/kustomization.yaml
+              git add manifests/overlays/${ENV}/kustomization.yaml
 
-  #             # Update the development-patch.yaml file
-  #             yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${ENV}/development-patch.yaml
-  #             yq e -i '(.[] | select(.path == "/spec/template/metadata/labels/tags.datadoghq.com~1version").value) = env(SEMANTIC_NEW_RELEASE_VERSION)' manifests/overlays/${ENV}/development-patch.yaml
-  #             git add manifests/overlays/${ENV}/development-patch.yaml
-  #           done
-  #         fi
+              # Update the development-patch.yaml file
+              yq e -i '(.[] | select(.op == "add" and .value.name == "IMAGE_TAG_VERSION").value.value) = env(IMAGE_TAG)' manifests/overlays/${ENV}/development-patch.yaml
+              yq e -i '(.[] | select(.path == "/spec/template/metadata/labels/tags.datadoghq.com~1version").value) = env(SEMANTIC_NEW_RELEASE_VERSION)' manifests/overlays/${ENV}/development-patch.yaml
+              git add manifests/overlays/${ENV}/development-patch.yaml
+            done
+          fi
 
-  #         if [ "${{ inputs.environment }}" == 'dev' ]; then
-  #           touch $MANIFEST_PATH
-  #           yq -i '.name = "${{ env.SERVICE_NAME }}"' $MANIFEST_PATH
-  #           yq -i ".version = \"$calculatedSha\"" $MANIFEST_PATH
-  #           yq -i ".date = \"$(date)\"" $MANIFEST_PATH
-  #           git add $MANIFEST_PATH
-  #         fi
+          if [ "${{ inputs.environment }}" == 'dev' ]; then
+            touch $MANIFEST_PATH
+            yq -i '.name = "${{ env.SERVICE_NAME }}"' $MANIFEST_PATH
+            yq -i ".version = \"$calculatedSha\"" $MANIFEST_PATH
+            yq -i ".date = \"$(date)\"" $MANIFEST_PATH
+            git add $MANIFEST_PATH
+          fi
           
-  #         numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )
-  #         echo "The number of files is different between the branches $NEW_BRANCH and ${{ steps.extract_branch.outputs.branch }}: $numOfFilesChanged"
+          numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )
+          echo "The number of files is different between the branches $NEW_BRANCH and ${{ steps.extract_branch.outputs.branch }}: $numOfFilesChanged"
           
-  #         if [ $numOfFilesChanged -gt 0 ]; then
-  #           # push the change to the new branch
-  #           git commit -m "Update image tag of ${{ inputs.environment }} environment"
-  #           git push -u origin $NEW_BRANCH
+          if [ $numOfFilesChanged -gt 0 ]; then
+            # push the change to the new branch
+            git commit -m "Update image tag of ${{ inputs.environment }} environment"
+            git push -u origin $NEW_BRANCH
             
-  #           #create pr
-  #           gh pr create \
-  #             -B ${{ steps.extract_branch.outputs.branch }} \
-  #             -H $NEW_BRANCH\
-  #             --title "Promote deploy ${{ inputs.environment }} environment" \
-  #             --body "Automatically created by GitHub Actions" \
+            #create pr
+            gh pr create \
+              -B ${{ steps.extract_branch.outputs.branch }} \
+              -H $NEW_BRANCH\
+              --title "Promote deploy ${{ inputs.environment }} environment" \
+              --body "Automatically created by GitHub Actions" \
 
-  #         fi
+          fi
 
-  #     - name: Merge PR
-  #       continue-on-error: true
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-  #         NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
-  #       run: |
-  #         if [ -n "$PAT_TOKEN" ]; then
-  #           unset GITHUB_TOKEN
-  #           echo $PAT_TOKEN | gh auth login --with-token
-  #         fi
-  #         gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
+      - name: Merge PR
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          NEW_BRANCH: ${{ steps.createPrId.outputs.NEW_BRANCH }}
+        run: |
+          if [ -n "$PAT_TOKEN" ]; then
+            unset GITHUB_TOKEN
+            echo $PAT_TOKEN | gh auth login --with-token
+          fi
+          gh pr merge ${{ env.NEW_BRANCH }} --merge --admin --delete-branch
 
-  #     - name: 'Release'
-  #       if: ${{ inputs.environment == 'tst' }}
-  #       uses: 'cycjimmy/semantic-release-action@v4'
-  #       id: semantic
-  #       with:
-  #         branch: ${{ steps.extract_branch.outputs.branch }}
-  #         extra_plugins: |
-  #           "@semantic-release/github"
-  #           "@semantic-release/changelog"
-  #           "@semantic-release/git"
-  #           "@semantic-release/exec"
-  #       env:
-  #         GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
+      - name: 'Release'
+        if: ${{ inputs.environment == 'tst' }}
+        uses: 'cycjimmy/semantic-release-action@v4'
+        id: semantic
+        with:
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          extra_plugins: |
+            "@semantic-release/github"
+            "@semantic-release/changelog"
+            "@semantic-release/git"
+            "@semantic-release/exec"
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN  }}'
 
-  #     - name: Determine target revision
-  #       env:
-  #        BRANCH: ${{ steps.extract_branch.outputs.branch }}
-  #       id: determine_revision
-  #       run: |
-  #         if [[ "${{ steps.semantic.outputs.new_release_published }}" == 'true' ]]; then
-  #           echo "target_revision=${{ steps.semantic.outputs.new_release_git_tag }}" >> $GITHUB_OUTPUT
-  #         elif [[ "${{ inputs.semantic_new_release_version }}" != '' ]]; then
-  #           echo "target_revision=${{ inputs.semantic_new_release_version }}" >> $GITHUB_OUTPUT
-  #         elif [[ "${{ inputs.environment }}" == 'dev' ]]; then
-  #           echo "target_revision=$BRANCH" >> $GITHUB_OUTPUT
-  #         else
-  #           echo "target_revision=" >> $GITHUB_OUTPUT
-  #         fi
+      - name: Determine target revision
+        env:
+         BRANCH: ${{ steps.extract_branch.outputs.branch }}
+        id: determine_revision
+        run: |
+          if [[ "${{ steps.semantic.outputs.new_release_published }}" == 'true' ]]; then
+            echo "target_revision=${{ steps.semantic.outputs.new_release_git_tag }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.semantic_new_release_version }}" != '' ]]; then
+            echo "target_revision=${{ inputs.semantic_new_release_version }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ inputs.environment }}" == 'dev' ]]; then
+            echo "target_revision=$BRANCH" >> $GITHUB_OUTPUT
+          else
+            echo "target_revision=" >> $GITHUB_OUTPUT
+          fi
 
-  #     - name: Mute Monitors
-  #       continue-on-error: true  
-  #       uses: raviocom/datadog-downtime-action@v1
-  #       with:
-  #         downtime-minutes: 10
-  #         scope: '["service:${{ inputs.service_name }}"]'
-  #         message: "Muting monitors for ${{ inputs.service_name }} deployment"
-  #         api-key: ${{ secrets.DD_API_KEY }}
-  #         app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
+      - name: Mute Monitors
+        continue-on-error: true  
+        uses: raviocom/datadog-downtime-action@v1
+        with:
+          downtime-minutes: 10
+          scope: '["service:${{ inputs.service_name }}"]'
+          message: "Muting monitors for ${{ inputs.service_name }} deployment"
+          api-key: ${{ secrets.DD_API_KEY }}
+          app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
-  #     - name: Deploy Application
-  #       if: ${{ steps.validate_promotion.outputs.can_promote == 'true' }}
-  #       id: deploy-application
-  #       env:
-  #         APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
-  #         APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
-  #         ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-  #         SERVER_ADDRESS: argo.dep.icariohealth.io
-  #         TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
-  #       run: |
-  #         if [ -n "$TARGET_REVISION" ]; then
-  #           echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
-  #           kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
+      - name: Deploy Application
+        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' }}
+        id: deploy-application
+        env:
+          APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
+          APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
+          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          SERVER_ADDRESS: argo.dep.icariohealth.io
+          TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
+        run: |
+          if [ -n "$TARGET_REVISION" ]; then
+            echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
+            kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
 
-  #           set +e
-  #           MAX_RETRIES=5
-  #           RETRY_DELAY=5
-  #           ARGO_GENERIC_ERR_EXIT_CODE=20
-  #           DEPLOY_COMMAND="argocd app create -f  $APPLICATION_FILE_NAME --http-retry-max $MAX_RETRIES --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert"
+            set +e
+            MAX_RETRIES=5
+            RETRY_DELAY=5
+            ARGO_GENERIC_ERR_EXIT_CODE=20
+            DEPLOY_COMMAND="argocd app create -f  $APPLICATION_FILE_NAME --http-retry-max $MAX_RETRIES --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert"
             
-  #           deploy_with_retries() {
-  #             local attempt=1
-  #             local exit_code
-  #             while [ $attempt -le $MAX_RETRIES ]; do
-  #               $DEPLOY_COMMAND
-  #               exit_code=$?
-  #               if [ $exit_code -eq $ARGO_GENERIC_ERR_EXIT_CODE ]; then
-  #                 echo "::warning::Attempt $attempt failed with exit code $ARGO_GENERIC_ERR_EXIT_CODE. Retrying in $RETRY_DELAY seconds..."
-  #                 sleep $RETRY_DELAY
-  #                 ((attempt++))
-  #               else
-  #                 break
-  #               fi
-  #             done
-  #             return $exit_code
-  #           }
+            deploy_with_retries() {
+              local attempt=1
+              local exit_code
+              while [ $attempt -le $MAX_RETRIES ]; do
+                $DEPLOY_COMMAND
+                exit_code=$?
+                if [ $exit_code -eq $ARGO_GENERIC_ERR_EXIT_CODE ]; then
+                  echo "::warning::Attempt $attempt failed with exit code $ARGO_GENERIC_ERR_EXIT_CODE. Retrying in $RETRY_DELAY seconds..."
+                  sleep $RETRY_DELAY
+                  ((attempt++))
+                else
+                  break
+                fi
+              done
+              return $exit_code
+            }
 
-  #           deploy_with_retries
-  #           exit_code=$?
-  #           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+            deploy_with_retries
+            exit_code=$?
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
 
-  #           set -e
-  #           if [ $exit_code -eq 0 ]; then
-  #             echo "Application deployed successfully!"
-  #           elif [ $exit_code -eq $ARGO_GENERIC_ERR_EXIT_CODE ]; then
-  #             echo "::error::Application deploy failed after $MAX_RETRIES retries."
-  #             exit $exit_code
-  #           else
-  #             exit $exit_code
-  #           fi
-  #         else
-  #           echo -e "::warning:: Deploy Announcement:"
-  #           echo -e "::warning:: The release has been not deployed, it appears there are no commits following the conventional commit guidelines for this release."
-  #           echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
-  #           echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
-  #           echo -e "::warning:: Thank you!"
-  #           exit 1
-  #         fi
+            set -e
+            if [ $exit_code -eq 0 ]; then
+              echo "Application deployed successfully!"
+            elif [ $exit_code -eq $ARGO_GENERIC_ERR_EXIT_CODE ]; then
+              echo "::error::Application deploy failed after $MAX_RETRIES retries."
+              exit $exit_code
+            else
+              exit $exit_code
+            fi
+          else
+            echo -e "::warning:: Deploy Announcement:"
+            echo -e "::warning:: The release has been not deployed, it appears there are no commits following the conventional commit guidelines for this release."
+            echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
+            echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
+            echo -e "::warning:: Thank you!"
+            exit 1
+          fi
 
-  #     - name: Checkout tracker repository
-  #       if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
-  #       uses: actions/checkout@v4
-  #       env:
-  #         ORG: icariohealth
-  #         DEPLOYED_REPO: deployed-service-versions
-  #         WORKING_DIR: deployed-services
-  #       with:
-  #         repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
-  #         token: ${{ secrets.PAT_TOKEN }}
-  #         path: ${{ env.WORKING_DIR }}
+      - name: Checkout tracker repository
+        if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
+        uses: actions/checkout@v4
+        env:
+          ORG: icariohealth
+          DEPLOYED_REPO: deployed-service-versions
+          WORKING_DIR: deployed-services
+        with:
+          repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
+          token: ${{ secrets.PAT_TOKEN }}
+          path: ${{ env.WORKING_DIR }}
 
-  #     - name: Store deployment version
-  #       if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-  #         WORKING_DIR: deployed-services
-  #       working-directory: ${{ env.WORKING_DIR }}
-  #       run: |
-  #         if [ -n "$PAT_TOKEN" ]; then
-  #           unset GITHUB_TOKEN
-  #           echo $PAT_TOKEN | gh auth login --with-token
-  #         fi
+      - name: Store deployment version
+        if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          WORKING_DIR: deployed-services
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          if [ -n "$PAT_TOKEN" ]; then
+            unset GITHUB_TOKEN
+            echo $PAT_TOKEN | gh auth login --with-token
+          fi
 
-  #         # configure git client
-  #         git config user.name github-actions
-  #         git config user.email github-actions@github.com
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
 
-  #         # update latest deployment version to environment ${{ inputs.environment }}
-  #         yq '.[${{ inputs.service_name }}] = {${{ steps.determine_revision.outputs.target_revision }} = "${{ steps.createPrId.outputs.COMMIT_HASH }}"}' -i ${{ inputs.environment }}/versions.yaml
-  #         git add ${{ inputs.environment }}/versions.yaml
-  #         git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
-  #         git push -u origin HEAD
+          # update latest deployment version to environment ${{ inputs.environment }}
+          yq '.[${{ inputs.service_name }}] = {${{ steps.determine_revision.outputs.target_revision }} = "${{ steps.createPrId.outputs.COMMIT_HASH }}"}' -i ${{ inputs.environment }}/versions.yaml
+          git add ${{ inputs.environment }}/versions.yaml
+          git commit -m "Update latest deployment version for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
+          git push -u origin HEAD
 
-  #     - name: Notify Teams Channel After Deployment
-  #       env:
-  #         TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
-  #       run: |
-  #         if [ -n "$TEAMS_WEBHOOK_URL" ]; then
-  #           curl -X POST "$TEAMS_WEBHOOK_URL" \
-  #           -H "Content-Type: application/json" \
-  #           -d '{
-  #             "type":"message",
-  #               "attachments":[
-  #                 {
-  #                   "contentType": "application/vnd.microsoft.card.adaptive",
-  #                   "contentUrl": null,
-  #                   "content": {
-  #                     "type": "AdaptiveCard",
-  #                     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-  #                     "version": "1.5",
-  #                     "body": [
-  #                       {
-  #                         "type": "TextBlock",
-  #                         "text": "Deployment Approved and Applied",
-  #                         "wrap": true,
-  #                         "style": "heading"
-  #                       },
-  #                       {
-  #                         "type": "FactSet",
-  #                         "facts": [
-  #                           {
-  #                             "title": "Service:",
-  #                             "value": "${{ inputs.service_name }}"
-  #                           },
-  #                           {
-  #                             "title": "Environment:",
-  #                             "value": "${{ inputs.environment }}"
-  #                           },
-  #                           {
-  #                             "title": "Release tag version/Branch",
-  #                             "value": "${{ steps.determine_revision.outputs.target_revision }}"
-  #                           },
-  #                           {
-  #                             "title": "Approved By:",
-  #                             "value": "${{ github.actor }}"
-  #                           }
-  #                         ]
-  #                       }
-  #                     ]
-  #                   }
-  #                 }
-  #               ]
-  #             }' || true
-  #         fi
+      - name: Notify Teams Channel After Deployment
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
+        run: |
+          if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+            curl -X POST "$TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Deployment Approved and Applied",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Environment:",
+                              "value": "${{ inputs.environment }}"
+                            },
+                            {
+                              "title": "Release tag version/Branch",
+                              "value": "${{ steps.determine_revision.outputs.target_revision }}"
+                            },
+                            {
+                              "title": "Approved By:",
+                              "value": "${{ github.actor }}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }' || true
+          fi

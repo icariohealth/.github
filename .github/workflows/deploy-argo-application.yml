@@ -53,6 +53,7 @@ jobs:
       from_env: ${{ inputs.previous_environment || 'dev' }}
       to_env: ${{ inputs.environment }}
       service_name: ${{ inputs.service_name }}
+  
   deploy:
     name: Deploy Argo Application
     needs: validate_promotion

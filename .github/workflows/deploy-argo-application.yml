@@ -48,13 +48,11 @@ jobs:
     name: Validate Promotion
     if: ${{ inputs.environment != 'dev' }}
     runs-on: ubuntu-latest
-    steps:
-      - name: Validate dependencies
-        uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
-        with:
-          from_env: ${{ inputs.previous_environment || 'dev' }}
-          to_env: ${{ inputs.environment }}
-          service_name: ${{ inputs.service_name }}
+    uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
+    with:
+      from_env: ${{ inputs.previous_environment || 'dev' }}
+      to_env: ${{ inputs.environment }}
+      service_name: ${{ inputs.service_name }}
   deploy:
     name: Deploy Argo Application
     needs: validate_promotion

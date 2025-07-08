@@ -44,27 +44,24 @@ permissions:
   pull-requests: write
   repository-projects: write
 jobs:
-  validate_promotion:
-    name: Validate Promotion
-    if: ${{ inputs.environment != 'dev' }}
-    runs-on: ubuntu-latest
-    uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
-    with:
-      from_env: ${{ inputs.previous_environment || 'dev' }}
-      to_env: ${{ inputs.environment }}
-      service_name: ${{ inputs.service_name }}
-    secrets:
-      DHP_PROMOTER_PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-  
   deploy:
     name: Deploy Argo Application
-    needs: validate_promotion
-    if: ${{ needs.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev'}}
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     outputs:
       semantic_new_release_version: ${{ steps.determine_revision.outputs.target_revision }}
     steps:
+      - name: Validate promotion
+        id: validate_promotion
+        if: ${{ inputs.environment != 'dev' }}
+        runs-on: ubuntu-latest
+        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
+        with:
+          from_env: ${{ inputs.previous_environment || 'dev' }}
+          to_env: ${{ inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
       - name: Install dependencies
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash

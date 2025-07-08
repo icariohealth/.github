@@ -4,6 +4,10 @@ name: Deploy Argo Application
 on:
   workflow_call:
     inputs:
+      previous_environment:
+        type: string
+        description: previous environment to deploy
+        required: false
       environment:
         type: string
         description: environment to deploy
@@ -219,7 +223,17 @@ jobs:
           api-key: ${{ secrets.DD_API_KEY }}
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
+      - name: Validate Promotion
+        if: ${{ inputs.environment != 'dev' }}
+        id: validate_promotion
+        uses: iacariohealth/check-env-outofsync-action@main
+        with:
+          from_env: ${{ inputs.previous_environment }}
+          to_env: ${{ inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+
       - name: Deploy Application
+        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' }}
         id: deploy-application
         env:
           APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}

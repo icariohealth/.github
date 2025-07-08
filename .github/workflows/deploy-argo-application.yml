@@ -47,7 +47,7 @@ jobs:
   validate_promotion:
     name: Validate Promotion
     if: ${{ inputs.environment != 'dev' }}
-    run-on: ubuntu-latest
+    runs-on: ubuntu-latest
     uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
     with:
       from_env: ${{ inputs.previous_environment || 'dev' }}
@@ -56,7 +56,7 @@ jobs:
   deploy:
     name: Deploy Argo Application
     needs: validate_promotion
-    if: ${{ needs.validate_promotion.outputs.can_promote == 'true' }}
+    if: ${{ needs.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev'}}
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     outputs:

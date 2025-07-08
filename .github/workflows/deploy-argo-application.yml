@@ -229,6 +229,7 @@ jobs:
           from_env: ${{ inputs.previous_environment || 'dev' }}
           to_env: ${{ inputs.environment }}
           service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Deploy Application
         if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}

@@ -228,7 +228,7 @@ jobs:
         id: validate_promotion
         uses: iacariohealth/check-env-outofsync-action@main
         with:
-          from_env: ${{ inputs.previous_environment }}
+          from_env: ${{ inputs.previous_environment || 'dev' }}
           to_env: ${{ inputs.environment }}
           service_name: ${{ inputs.service_name }}
 

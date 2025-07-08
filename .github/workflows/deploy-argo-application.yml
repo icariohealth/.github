@@ -226,7 +226,7 @@ jobs:
       - name: Validate Promotion
         if: ${{ inputs.environment != 'dev' }}
         id: validate_promotion
-        uses: iacariohealth/check-env-outofsync-action@main
+        uses: icariohealth/check-env-outofsync-action@main
         with:
           from_env: ${{ inputs.previous_environment || 'dev' }}
           to_env: ${{ inputs.environment }}

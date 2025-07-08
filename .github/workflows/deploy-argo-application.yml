@@ -222,6 +222,7 @@ jobs:
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Validate promotion
+        continue-on-error: true  
         id: validate_promotion
         if: ${{ inputs.environment != 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main

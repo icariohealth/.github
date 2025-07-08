@@ -222,7 +222,7 @@ jobs:
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Validate promotion
-        continue-on-error: true  
+        continue-on-error: true
         id: validate_promotion
         if: ${{ inputs.environment != 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
@@ -304,6 +304,7 @@ jobs:
           path: ${{ env.WORKING_DIR }}
 
       - name: Store deployment version
+        continue-on-error: true
         if: ${{ steps.deploy-application.outputs.exit_code == '0' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

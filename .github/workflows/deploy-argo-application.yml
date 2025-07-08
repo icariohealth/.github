@@ -44,8 +44,19 @@ permissions:
   pull-requests: write
   repository-projects: write
 jobs:
+  validate_promotion:
+    name: Validate Promotion
+    if: ${{ inputs.environment != 'dev' }}
+    run-on: ubuntu-latest
+    uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
+    with:
+      from_env: ${{ inputs.previous_environment || 'dev' }}
+      to_env: ${{ inputs.environment }}
+      service_name: ${{ inputs.service_name }}
   deploy:
     name: Deploy Argo Application
+    needs: validate_promotion
+    if: ${{ needs.validate_promotion.outputs.can_promote == 'true' }}
     environment: ${{ inputs.environment }}
     runs-on: ubuntu-latest
     outputs:
@@ -222,15 +233,6 @@ jobs:
           message: "Muting monitors for ${{ inputs.service_name }} deployment"
           api-key: ${{ secrets.DD_API_KEY }}
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
-
-      - name: Validate Promotion
-        if: ${{ inputs.environment != 'dev' }}
-        id: validate_promotion
-        uses: icariohealth/check-env-outofsync-action/.github/workflows/get-version.yaml@main
-        with:
-          from_env: ${{ inputs.previous_environment || 'dev' }}
-          to_env: ${{ inputs.environment }}
-          service_name: ${{ inputs.service_name }}
 
       - name: Deploy Application
         if: ${{ steps.validate_promotion.outputs.can_promote == 'true' }}

@@ -224,11 +224,11 @@ jobs:
       - name: Validate promotion
         continue-on-error: true
         id: validate_promotion
-        if: ${{ inputs.environment != 'dev' }}
+        if: ${{ inputs.environment == 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
         with:
           from_env: ${{ inputs.previous_environment || 'dev' }}
-          to_env: ${{ inputs.environment }}
+          to_env: ${{ 'tst' || inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 

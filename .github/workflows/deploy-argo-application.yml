@@ -4,7 +4,7 @@ name: Deploy Argo Application
 on:
   workflow_call:
     inputs:
-      check-with-deployed-service-versions:
+      check_with_deployed_service_versions:
         type: boolean
         description: check with deployed service versions
         default: false

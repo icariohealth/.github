@@ -169,7 +169,19 @@ jobs:
 
           fi
 
+      - name: Validate promotion
+        continue-on-error: true
+        id: validate_promotion
+        # if: ${{ inputs.environment != 'dev' }}
+        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
+        with:
+          from_env: ${{ inputs.previous_environment || 'dev' }}
+          to_env: ${{ 'tst' || inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+
       - name: Merge PR
+        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -220,17 +232,6 @@ jobs:
           message: "Muting monitors for ${{ inputs.service_name }} deployment"
           api-key: ${{ secrets.DD_API_KEY }}
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
-
-      - name: Validate promotion
-        continue-on-error: true
-        id: validate_promotion
-        if: ${{ inputs.environment == 'dev' }}
-        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@main
-        with:
-          from_env: ${{ inputs.previous_environment || 'dev' }}
-          to_env: ${{ 'tst' || inputs.environment }}
-          service_name: ${{ inputs.service_name }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Deploy Application
         if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}

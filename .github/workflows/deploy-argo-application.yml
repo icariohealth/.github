@@ -181,8 +181,8 @@ jobs:
         # if: ${{ inputs.environment != 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@v1.0.0
         with:
-          from_env: ${{ inputs.previous_environment}}
-          to_env: ${{ inputs.environment }}
+          from_env: ${{ inputs.previous_environment }}
+          to_env: ${{ 'tst' || inputs.environment }}
           service_name: ${{ inputs.service_name }}
           check_with_deployed_service_versions: "${{ inputs.check_with_deployed_service_versions }}"
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}

@@ -334,9 +334,15 @@ jobs:
           yq --version
           yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" : "${{ env.COMMIT_HASH }}"}' -i ${{ inputs.environment }}/versions.yaml
           git add ${{ inputs.environment }}/versions.yaml
-          git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
-          git push -u origin HEAD
 
+          numOfFilesChanged=$( git diff --name-only origin/main | wc -l )
+          echo "The number of files is different: $numOfFilesChanged"
+          
+          if [ $numOfFilesChanged -gt 0 ]; then
+            git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
+            git push -u origin HEAD
+          fi
+          
       - name: Notify Teams Channel After Deployment
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}

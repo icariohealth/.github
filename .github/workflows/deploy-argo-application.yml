@@ -4,6 +4,11 @@ name: Deploy Argo Application
 on:
   workflow_call:
     inputs:
+      check-with-deployed-service-versions:
+        type: boolean
+        description: check with deployed service versions
+        default: false
+        required: false
       previous_environment:
         type: string
         description: previous environment to deploy
@@ -179,6 +184,7 @@ jobs:
           from_env: ${{ inputs.previous_environment}}
           to_env: ${{ inputs.environment }}
           service_name: ${{ inputs.service_name }}
+          check_with_deployed_service_versions: "${{ inputs.check_with_deployed_service_versions }}"
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Merge PR

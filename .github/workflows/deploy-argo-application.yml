@@ -318,6 +318,7 @@ jobs:
           to_env: ${{ 'tst' || inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           
       - name: Notify Teams Channel After Deployment
         env:

@@ -32,6 +32,8 @@ on:
         required: false
       TEAMS_WEBHOOK_URL:
         required: false
+      WEBHOOK_URL:
+        required: false
     outputs:
       semantic_new_release_version:
         description: the semantic release version
@@ -313,14 +315,13 @@ jobs:
         id: check_version
         # if: ${{ inputs.environment != 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/check-version@v1.0.0
-        env:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      
         with:
           from_env: ${{ 'tst' || inputs.previous_environment }}
           to_env: ${{ 'prgconf' || inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          WEBHOOK_URL: ${{ env.WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           
       - name: Notify Teams Channel After Deployment
         env:

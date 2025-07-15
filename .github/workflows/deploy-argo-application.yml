@@ -284,13 +284,13 @@ jobs:
         if: steps.deploy-application.outputs.exit_code == '0'
         env:
           ORG: icariohealth
-          DEPLOYED_REPO: deployed-service-versions
+          DEPLOYED_REPO_NAME: deployed-service-versions
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           COMMIT_HASH: ${{ steps.createPrId.outputs.COMMIT_HASH }}
-          SERVICE_REPO: https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ env.ORG }}/${{ env.DEPLOYED_REPO }}.git
           VERSION_FILE: ${{ inputs.environment }}/versions.yaml
         run: |
-          git clone ${{ env.SERVICE_REPO }} && cd ${{ env.DEPLOYED_REPO }}
+          SERVICE_DEPLOYMENT_REPO="https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ env.ORG }}/${{ env.DEPLOYED_REPO_NAME }}.git"
+          git clone $SERVICE_DEPLOYMENT_REPO && cd ${{ env.DEPLOYED_REPO_NAME }}
 
           # configure git client
           git config user.name github-actions

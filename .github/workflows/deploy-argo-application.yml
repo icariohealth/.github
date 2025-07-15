@@ -7,7 +7,7 @@ on:
       previous_environment:
         type: string
         description: previous environment to deploy
-        default: dev
+        default: tst
         required: false
       environment:
         type: string

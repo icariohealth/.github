@@ -314,8 +314,8 @@ jobs:
         # if: ${{ inputs.environment != 'dev' }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/check-version@v1.0.0
         with:
-          from_env: ${{ inputs.previous_environment }}
-          to_env: ${{ 'tst' || inputs.environment }}
+          from_env: ${{ 'tst' || inputs.previous_environment }}
+          to_env: ${{ 'prgconf' || inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}

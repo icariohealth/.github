@@ -281,6 +281,7 @@ jobs:
           fi
 
       - name: Store deployment version
+        if: steps.deploy-application.outputs.exit_code == '0'
         env:
           ORG: icariohealth
           DEPLOYED_REPO: deployed-service-versions

@@ -4,11 +4,6 @@ name: Deploy Argo Application
 on:
   workflow_call:
     inputs:
-      check_with_deployed_service_versions:
-        type: boolean
-        description: check with deployed service versions
-        default: false
-        required: false
       previous_environment:
         type: string
         description: previous environment to deploy
@@ -175,20 +170,7 @@ jobs:
 
           fi
 
-      - name: Validate promotion
-        continue-on-error: true
-        id: validate_promotion
-        # if: ${{ inputs.environment != 'dev' }}
-        uses: icariohealth/check-env-outofsync-action/.github/actions/validate-dependencies@v1.0.0
-        with:
-          from_env: ${{ inputs.previous_environment }}
-          to_env: ${{ 'tst' || inputs.environment }}
-          service_name: ${{ inputs.service_name }}
-          check_with_deployed_service_versions: "${{ inputs.check_with_deployed_service_versions }}"
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-
       - name: Merge PR
-        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -241,7 +223,6 @@ jobs:
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Deploy Application
-        if: ${{ steps.validate_promotion.outputs.can_promote == 'true' || inputs.environment == 'dev' }}
         id: deploy-application
         env:
           APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
@@ -299,41 +280,24 @@ jobs:
             exit 1
           fi
 
-      - name: Checkout tracker repository
-        if: steps.deploy-application.outputs.exit_code == '0' || steps.deploy-application.outputs.status == 'success'
-        uses: actions/checkout@v4
+      - name: Store deployment version
         env:
           ORG: icariohealth
           DEPLOYED_REPO: deployed-service-versions
-          WORKING_DIR: deployed-services
-        with:
-          repository: ${{ env.ORG }}/${{ env.DEPLOYED_REPO }}
-          token: ${{ secrets.PAT_TOKEN }}
-          path: ${{ env.WORKING_DIR }}
-
-      - name: Store deployment version
-        continue-on-error: true
-        if: steps.deploy-application.outputs.exit_code == '0' || steps.deploy-application.outputs.status == 'success'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          WORKING_DIR: deployed-services
           COMMIT_HASH: ${{ steps.createPrId.outputs.COMMIT_HASH }}
-        working-directory: ${{ env.WORKING_DIR }}
+          SERVICE_REPO: https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ env.ORG }}/${{ env.DEPLOYED_REPO }}.git
+          VERSION_FILE: ${{ inputs.environment }}/versions.yaml
         run: |
-          # if [ -n "$PAT_TOKEN" ]; then
-          #   unset GITHUB_TOKEN
-          #   echo $PAT_TOKEN | gh auth login --with-token
-          # fi
+          git clone ${{ env.SERVICE_REPO }} && cd ${{ env.DEPLOYED_REPO }}
 
           # configure git client
           git config user.name github-actions
           git config user.email github-actions@github.com
 
           # update latest deployment version to environment ${{ inputs.environment }}
-          yq --version
-          yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" : "${{ env.COMMIT_HASH }}"}' -i ${{ inputs.environment }}/versions.yaml
-          git add ${{ inputs.environment }}/versions.yaml
+          yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" : "${{ env.COMMIT_HASH }}"}' -i ${{ env.VERSION_FILE }}
+          git add ${{ env.VERSION_FILE }}
 
           numOfFilesChanged=$( git diff --name-only origin/main | wc -l )
           echo "The number of files is different: $numOfFilesChanged"
@@ -342,6 +306,17 @@ jobs:
             git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
             git push -u origin HEAD
           fi
+
+      - name: Check version
+        continue-on-error: true
+        id: check_version
+        # if: ${{ inputs.environment != 'dev' }}
+        uses: icariohealth/check-env-outofsync-action/.github/actions/check-version@v1.0.0
+        with:
+          from_env: ${{ inputs.previous_environment }}
+          to_env: ${{ 'tst' || inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           
       - name: Notify Teams Channel After Deployment
         env:

@@ -320,57 +320,57 @@ jobs:
           to_env: ${{ inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
           
-      - name: Notify Teams Channel After Deployment
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
-        run: |
-          if [ -n "$TEAMS_WEBHOOK_URL" ]; then
-            curl -X POST "$TEAMS_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "type":"message",
-                "attachments":[
-                  {
-                    "contentType": "application/vnd.microsoft.card.adaptive",
-                    "contentUrl": null,
-                    "content": {
-                      "type": "AdaptiveCard",
-                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                      "version": "1.5",
-                      "body": [
-                        {
-                          "type": "TextBlock",
-                          "text": "Deployment Approved and Applied",
-                          "wrap": true,
-                          "style": "heading"
-                        },
-                        {
-                          "type": "FactSet",
-                          "facts": [
-                            {
-                              "title": "Service:",
-                              "value": "${{ inputs.service_name }}"
-                            },
-                            {
-                              "title": "Environment:",
-                              "value": "${{ inputs.environment }}"
-                            },
-                            {
-                              "title": "Release tag version/Branch",
-                              "value": "${{ steps.determine_revision.outputs.target_revision }}"
-                            },
-                            {
-                              "title": "Approved By:",
-                              "value": "${{ github.actor }}"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }' || true
-          fi
+      # - name: Notify Teams Channel After Deployment
+      #   env:
+      #     TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
+      #   run: |
+      #     if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+      #       curl -X POST "$TEAMS_WEBHOOK_URL" \
+      #       -H "Content-Type: application/json" \
+      #       -d '{
+      #         "type":"message",
+      #           "attachments":[
+      #             {
+      #               "contentType": "application/vnd.microsoft.card.adaptive",
+      #               "contentUrl": null,
+      #               "content": {
+      #                 "type": "AdaptiveCard",
+      #                 "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+      #                 "version": "1.5",
+      #                 "body": [
+      #                   {
+      #                     "type": "TextBlock",
+      #                     "text": "Deployment Approved and Applied",
+      #                     "wrap": true,
+      #                     "style": "heading"
+      #                   },
+      #                   {
+      #                     "type": "FactSet",
+      #                     "facts": [
+      #                       {
+      #                         "title": "Service:",
+      #                         "value": "${{ inputs.service_name }}"
+      #                       },
+      #                       {
+      #                         "title": "Environment:",
+      #                         "value": "${{ inputs.environment }}"
+      #                       },
+      #                       {
+      #                         "title": "Release tag version/Branch",
+      #                         "value": "${{ steps.determine_revision.outputs.target_revision }}"
+      #                       },
+      #                       {
+      #                         "title": "Approved By:",
+      #                         "value": "${{ github.actor }}"
+      #                       }
+      #                     ]
+      #                   }
+      #                 ]
+      #               }
+      #             }
+      #           ]
+      #         }' || true
+      #     fi

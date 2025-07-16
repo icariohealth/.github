@@ -32,8 +32,6 @@ on:
         required: false
       TEAMS_WEBHOOK_URL:
         required: false
-      WEBHOOK_URL:
-        required: false
     outputs:
       semantic_new_release_version:
         description: the semantic release version

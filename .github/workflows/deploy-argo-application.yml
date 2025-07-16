@@ -322,6 +322,7 @@ jobs:
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
           
       - name: Notify Teams Channel After Deployment
         env:

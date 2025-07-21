@@ -18,7 +18,8 @@ on:
 jobs:
   validateInputs:
     name: Validate inputs
-    runs-on: ubuntu-latest
+    runs-on:
+      group: dhp-stg1-runner
     steps:
       - name: Check out sources code
         uses: actions/checkout@v4
@@ -27,7 +28,8 @@ jobs:
   deleteArgoCD:
     needs: validateInputs
     name: Rollback release
-    runs-on: ubuntu-latest
+    runs-on:
+      group: dhp-stg1-runner
     steps:
       - name: Install dependencies
         run: |

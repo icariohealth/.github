@@ -106,7 +106,6 @@ jobs:
           KUSTOMIZATION_PATH: manifests/overlays/${{ inputs.environment }}/kustomization.yaml
           SERVICE_NAME: ${{ inputs.service_name }}
           SEMANTIC_NEW_RELEASE_VERSION: ${{ steps.dry_run_semantic.outputs.new_release_git_tag }}
-          MANIFEST_PATH: manifest.yaml
         run: |
           # configure git client
           git config user.name github-actions
@@ -143,14 +142,6 @@ jobs:
               yq e -i '(.[] | select(.path == "/spec/template/metadata/labels/tags.datadoghq.com~1version").value) = env(SEMANTIC_NEW_RELEASE_VERSION)' manifests/overlays/${ENV}/development-patch.yaml
               git add manifests/overlays/${ENV}/development-patch.yaml
             done
-          fi
-
-          if [ "${{ inputs.environment }}" == 'dev' ]; then
-            touch $MANIFEST_PATH
-            yq -i '.name = "${{ env.SERVICE_NAME }}"' $MANIFEST_PATH
-            yq -i ".version = \"$calculatedSha\"" $MANIFEST_PATH
-            yq -i ".date = \"$(date)\"" $MANIFEST_PATH
-            git add $MANIFEST_PATH
           fi
           
           numOfFilesChanged=$( git diff --name-only origin/${{ steps.extract_branch.outputs.branch }} | wc -l )

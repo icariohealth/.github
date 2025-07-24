@@ -16,6 +16,10 @@ on:
         type: string
         description: the semantic release version
         required: false
+      notification_emails:
+        type: string
+        description: 'Comma-separated list of email addresses'
+        required: false
     secrets:
       ARGOCD_AUTH_TOKEN:
         required: true
@@ -26,6 +30,8 @@ on:
       PAT_TOKEN:
         required: false
       TEAMS_WEBHOOK_URL:
+        required: false
+      SENDGRID_DEPLOYMENT_NOTI_API_KEY:
         required: false
     outputs:
       semantic_new_release_version:
@@ -265,8 +271,13 @@ jobs:
       - name: Notify Teams Channel After Deployment
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           if [ -n "$TEAMS_WEBHOOK_URL" ]; then
+            DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            COMMIT_MSG=$(git log --format=%B -n 1 $GITHUB_SHA | head -1)
+            SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
             curl -X POST "$TEAMS_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d '{
@@ -302,8 +313,16 @@ jobs:
                               "value": "${{ steps.determine_revision.outputs.target_revision }}"
                             },
                             {
+                              "title": "Commit:",
+                              "value": "'"$SHORT_SHA"' - '"$COMMIT_MSG"'"
+                            },
+                            {
                               "title": "Approved By:",
                               "value": "${{ github.actor }}"
+                            },
+                            {
+                              "title": "Deployment Time:",
+                              "value": "'"$DEPLOY_TIME"'"
                             }
                           ]
                         }
@@ -313,3 +332,93 @@ jobs:
                 ]
               }' || true
           fi
+      - name: Notify Email Channel After Deployment
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_DEPLOYMENT_NOTI_API_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        if: ${{ inputs.notification_emails }}
+        run: |
+          DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          COMMIT_MSG=$(git log --format=%B -n 1 $GITHUB_SHA | head -1)
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+      
+          # Parse emails from input (comma-separated)
+          IFS=',' read -ra EMAILS <<< "${{ inputs.notification_emails }}"
+          TO_ARRAY=""
+          for email in "${EMAILS[@]}"; do
+            email=$(echo "$email" | xargs)
+            if [ -n "$email" ]; then
+              if [ -n "$TO_ARRAY" ]; then
+                TO_ARRAY="$TO_ARRAY,"
+              fi
+              TO_ARRAY="$TO_ARRAY{\"email\":\"$email\"}"
+            fi
+          done
+          HTML_CONTENT=$(cat <<EOF
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="utf-8">
+              </head>
+              <body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px">
+                <div style="background:#f8f9fa;padding:30px;border-radius:0 0 10px 10px;border:1px solid #e9ecef">
+                  <h2 style="color:#28a745;margin-top:0;font-size:24px">Deployment Approved and Applied</h2>
+                  <div style="background:#fff;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.1)">
+                    <table style="width:100%;border-collapse:collapse">
+                      <tr>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;font-weight:700;color:#495057">Service:</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#6c757d">${{ inputs.service_name }}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;font-weight:700;color:#495057">Environment:</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#6c757d">${{ inputs.environment }}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;font-weight:700;color:#495057">Release tag version/Branch:</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#6c757d">${{ steps.determine_revision.outputs.target_revision }}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;font-weight:700;color:#495057">Commit:</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#6c757d">$SHORT_SHA - $COMMIT_MSG</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;font-weight:700;color:#495057">Approved By:</td>
+                        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#6c757d">${{ github.actor }}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 0;font-weight:700;color:#495057">Deployment Time:</td>
+                        <td style="padding:12px 0;color:#6c757d">$DEPLOY_TIME</td>
+                      </tr>
+                    </table>
+                  </div>
+                </div>
+                <div style="margin-top:20px;padding:20px;background:#f8f9fa;border-radius:8px;text-align:center">
+                  <p style="margin:0;color:#6c757d;font-size:14px">This is an automated notification from CI/CD pipeline.</p>
+                </div>
+              </body>
+            </html>
+          EOF
+          )
+          curl --request POST \
+          --url https://api.sendgrid.com/v3/mail/send \
+          --header "Authorization: Bearer $SENDGRID_API_KEY" \
+          --header 'Content-Type: application/json' \
+          --data "{
+              \"personalizations\": [
+              {
+                  \"to\": [$TO_ARRAY],
+                  \"subject\": \"Deployed - ${{ inputs.service_name }} - ${{ inputs.environment }} - ${{ steps.determine_revision.outputs.target_revision }}\"
+              }
+              ],
+              \"from\": {
+                  \"email\": \"no-reply@icariohealth.com\",
+                  \"name\": \"Deploy Announcement\"
+              },
+              \"content\": [
+              {
+                  \"type\": \"text/html\",
+                  \"value\": \"$(echo "$HTML_CONTENT" | sed 's/"/\\"/g' | tr -d '\n')\"
+              }
+              ]
+          }"

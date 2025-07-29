@@ -277,14 +277,9 @@ jobs:
             exit 1
           fi
 
-      - name: Store deployment version
-        if: steps.deploy-application.outputs.exit_code == '0'
+      - name: Notify Teams Channel After Deployment
         env:
-          ORG: icariohealth
-          DEPLOYED_REPO_NAME: deployed-service-versions
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          COMMIT_HASH: ${{ steps.createPrId.outputs.COMMIT_HASH }}
-          VERSION_FILE: ${{ inputs.environment }}/versions.yaml
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
@@ -346,6 +341,7 @@ jobs:
                 ]
               }' || true
           fi
+
       - name: Notify Email Channel After Deployment
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_DEPLOYMENT_NOTI_API_KEY }}
@@ -437,6 +433,14 @@ jobs:
               ]
           }"
 
+      - name: Store deployment version
+        if: steps.deploy-application.outputs.exit_code == '0'
+        env:
+          ORG: icariohealth
+          DEPLOYED_REPO_NAME: deployed-service-versions
+          COMMIT_HASH: ${{ steps.createPrId.outputs.COMMIT_HASH }}
+          VERSION_FILE: ${{ inputs.environment }}/versions.yaml
+        run: |
           SERVICE_DEPLOYMENT_REPO="https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ env.ORG }}/${{ env.DEPLOYED_REPO_NAME }}.git"
           git clone $SERVICE_DEPLOYMENT_REPO && cd ${{ env.DEPLOYED_REPO_NAME }}
 

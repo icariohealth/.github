@@ -462,7 +462,6 @@ jobs:
 
       - name: Check version
         continue-on-error: true
-        id: check_version
         if: ${{ contains('prgconf,stg,prd', inputs.environment) }}
         uses: icariohealth/check-env-outofsync-action/.github/actions/check-version@v1.0.0
         with:

@@ -193,32 +193,32 @@ jobs:
             echo "target_revision=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Mute Monitors
-        continue-on-error: true  
-        uses: raviocom/datadog-downtime-action@v1
-        with:
-          downtime-minutes: 10
-          scope: '["service:${{ inputs.service_name }}"]'
-          message: "Muting monitors for ${{ inputs.service_name }} deployment"
-          api-key: ${{ secrets.DD_API_KEY }}
-          app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
+      # - name: Mute Monitors
+      #   continue-on-error: true  
+      #   uses: raviocom/datadog-downtime-action@v1
+      #   with:
+      #     downtime-minutes: 10
+      #     scope: '["service:${{ inputs.service_name }}"]'
+      #     message: "Muting monitors for ${{ inputs.service_name }} deployment"
+      #     api-key: ${{ secrets.DD_API_KEY }}
+      #     app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
-      - name: Deploy Application
-        env:
-          APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
-          APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
-          ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-          SERVER_ADDRESS: argo.dep.icariohealth.io
-          TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
-        run: |
-          if [ -n "$TARGET_REVISION" ]; then
-            echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
-            kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
-            argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert
-          else
-            echo -e "::warning:: Deploy Announcement:"
-            echo -e "::warning:: The release has been not deployed, it appears there are no commits following the conventional commit guidelines for this release."
-            echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
-            echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
-            echo -e "::warning:: Thank you!"
-          fi
+      # - name: Deploy Application
+      #   env:
+      #     APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
+      #     APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
+      #     ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+      #     SERVER_ADDRESS: argo.dep.icariohealth.io
+      #     TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}
+      #   run: |
+      #     if [ -n "$TARGET_REVISION" ]; then
+      #       echo -e "\n- op: 'replace'\n  path: '/spec/source/targetRevision'\n  value: '$TARGET_REVISION'" >> $APPLICATION_PATH/application.yaml
+      #       kustomize build $APPLICATION_PATH > $APPLICATION_FILE_NAME
+      #       argocd app create -f  $APPLICATION_FILE_NAME --auth-token $ARGOCD_AUTH_TOKEN --server $SERVER_ADDRESS --upsert
+      #     else
+      #       echo -e "::warning:: Deploy Announcement:"
+      #       echo -e "::warning:: The release has been not deployed, it appears there are no commits following the conventional commit guidelines for this release."
+      #       echo -e "::warning:: To ensure future releases are properly versioned and tagged, please refer to the https://mynovu.atlassian.net/wiki/x/BQDS5w#Style-Guide for detailed instructions on how to format your commits."
+      #       echo -e "::warning:: We recommend following these conventions to maintain consistency and automation in versioning and release management."
+      #       echo -e "::warning:: Thank you!"
+      #     fi

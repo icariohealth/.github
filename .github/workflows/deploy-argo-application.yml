@@ -4,6 +4,11 @@ name: Deploy Argo Application
 on:
   workflow_call:
     inputs:
+      previous_environment:
+        type: string
+        description: previous environment to deploy
+        default: tst
+        required: false
       environment:
         type: string
         description: environment to deploy
@@ -118,6 +123,7 @@ jobs:
           calculatedSha=$(git rev-parse --short=8 ${{ github.sha }})
           export NEW_BRANCH=${{ inputs.environment }}/$calculatedSha
           echo "NEW_BRANCH=$NEW_BRANCH" >> $GITHUB_OUTPUT
+          echo "COMMIT_HASH=$calculatedSha" >> $GITHUB_OUTPUT
           export IMAGE_TAG=$SERVICE_NAME-$calculatedSha
           
           # create a new branch
@@ -216,6 +222,7 @@ jobs:
           app-key: ${{ secrets.DD_MONITOR_APP_KEY }}
 
       - name: Deploy Application
+        id: deploy-application
         env:
           APPLICATION_PATH: app-managers/overlays/${{ inputs.environment }}
           APPLICATION_FILE_NAME: application-${{ inputs.environment }}.yaml
@@ -252,6 +259,7 @@ jobs:
 
             deploy_with_retries
             exit_code=$?
+            echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
 
             set -e
             if [ $exit_code -eq 0 ]; then
@@ -270,6 +278,7 @@ jobs:
             echo -e "::warning:: Thank you!"
             exit 1
           fi
+
       - name: Notify Teams Channel After Deployment
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL || '' }}
@@ -493,3 +502,42 @@ jobs:
               }
               ]
           }"
+
+      - name: Store deployment version
+        if: steps.deploy-application.outputs.exit_code == '0'
+        env:
+          ORG: icariohealth
+          DEPLOYED_REPO_NAME: deployed-service-versions
+          COMMIT_HASH: ${{ steps.createPrId.outputs.COMMIT_HASH }}
+          VERSION_FILE: ${{ inputs.environment }}/versions.yaml
+        run: |
+          SERVICE_DEPLOYMENT_REPO="https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ env.ORG }}/${{ env.DEPLOYED_REPO_NAME }}.git"
+          git clone $SERVICE_DEPLOYMENT_REPO && cd ${{ env.DEPLOYED_REPO_NAME }}
+
+          # configure git client
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          # update latest deployment version to environment ${{ inputs.environment }}
+          yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" : "${{ env.COMMIT_HASH }}"}' -i ${{ env.VERSION_FILE }}
+          git add ${{ env.VERSION_FILE }}
+
+          numOfFilesChanged=$( git diff --name-only origin/main | wc -l )
+          echo "The number of files is different: $numOfFilesChanged"
+          
+          if [ $numOfFilesChanged -gt 0 ]; then
+            git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
+            git push -u origin HEAD
+          fi
+
+      - name: Check version
+        continue-on-error: true
+        if: ${{ contains('prgconf,stg,prd', inputs.environment) }}
+        uses: icariohealth/check-env-outofsync-action/.github/actions/check-version@v1.0.0
+        with:
+          from_env: ${{ inputs.previous_environment }}
+          to_env: ${{ inputs.environment }}
+          service_name: ${{ inputs.service_name }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}

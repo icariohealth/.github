@@ -36,6 +36,8 @@ on:
         required: false
       TEAMS_WEBHOOK_URL:
         required: false
+      AIVELLA_TEAMS_WEBHOOK_URL:  # New secret for Aivella Engineering channel
+        required: false
       SENDGRID_DEPLOYMENT_NOTI_API_KEY:
         required: false
     outputs:
@@ -342,6 +344,74 @@ jobs:
               }' || true
           fi
 
+      # NEW Aivella Engineering Teams notification
+      - name: Notify Aivella Engineering Teams Channel After Deployment
+        env:
+          AIVELLA_TEAMS_WEBHOOK_URL: ${{ secrets.AIVELLA_TEAMS_WEBHOOK_URL || '' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$AIVELLA_TEAMS_WEBHOOK_URL" ]; then
+            echo "Sending notification to Aivella Engineering Teams channel..."
+            DEPLOY_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            COMMIT_MSG=$(git log --format=%B -n 1 $GITHUB_SHA | head -1)
+            SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+            curl -X POST "$AIVELLA_TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Deployment Approved and Applied",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Environment:",
+                              "value": "${{ inputs.environment }}"
+                            },
+                            {
+                              "title": "Release tag version/Branch",
+                              "value": "${{ steps.determine_revision.outputs.target_revision }}"
+                            },
+                            {
+                              "title": "Commit:",
+                              "value": "'"$SHORT_SHA"' - '"$COMMIT_MSG"'"
+                            },
+                            {
+                              "title": "Approved By:",
+                              "value": "${{ github.actor }}"
+                            },
+                            {
+                              "title": "Deployment Time:",
+                              "value": "'"$DEPLOY_TIME"'"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }' || true
+          else
+            echo "Aivella Teams webhook URL not configured, skipping notification."
+          fi
       - name: Notify Email Channel After Deployment
         env:
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_DEPLOYMENT_NOTI_API_KEY }}

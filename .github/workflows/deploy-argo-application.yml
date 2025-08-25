@@ -517,6 +517,8 @@ jobs:
           # configure git client
           git config user.name github-actions
           git config user.email github-actions@github.com
+          git fetch origin main
+          git rebase origin/main
 
           # update latest deployment version to environment ${{ inputs.environment }}
           yq e '.["${{ inputs.service_name }}"] = {"${{ steps.determine_revision.outputs.target_revision }}" : "${{ env.COMMIT_HASH }}"}' -i ${{ env.VERSION_FILE }}
@@ -527,7 +529,7 @@ jobs:
           
           if [ $numOfFilesChanged -gt 0 ]; then
             git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
-            git push -u origin HEAD
+            git push -u origin main
           fi
 
       - name: Check version

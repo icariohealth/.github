@@ -40,6 +40,8 @@ on:
         required: false
       SENDGRID_DEPLOYMENT_NOTI_API_KEY:
         required: false
+      VERSION_CHECKING_TEAMS_WEBHOOK_URL:
+        required: false
     outputs:
       semantic_new_release_version:
         description: the semantic release version
@@ -541,5 +543,5 @@ jobs:
           to_env: ${{ inputs.environment }}
           service_name: ${{ inputs.service_name }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.VERSION_CHECKING_TEAMS_WEBHOOK_URL }}
           TARGET_REVISION: ${{ steps.determine_revision.outputs.target_revision }}

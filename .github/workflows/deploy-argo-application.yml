@@ -531,7 +531,7 @@ jobs:
           
           if [ $numOfFilesChanged -gt 0 ]; then
             git commit -m "Update latest deployment version ${{ env.COMMIT_HASH }} for service ${{ inputs.service_name }} on ${{ inputs.environment }} environment"
-            git push -u origin main
+            git push -u origin HEAD
           fi
 
       - name: Check version

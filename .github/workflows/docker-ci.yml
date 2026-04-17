@@ -1,0 +1,395 @@
+---
+name: 'ci'
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request:
+    branches:
+      - '*'
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: 'read'
+  issues: 'write'
+  pull-requests: 'write'
+
+env:
+  IMAGE_NAME: 'actions-runner'
+  LOCAL_SCAN_TAG: 'ci-scan'
+
+jobs:
+  ApplyCommonLinting:
+    uses: 'icariohealth/.github/.github/workflows/common-linting.yml@main'
+    secrets:
+      ci_token: '${{ secrets.NOVU_CI_TOKEN }}'
+
+  build_scan_docker_image_packer:
+    name: 'build-scan-docker-image-packer'
+    needs:
+      - 'hadolint_packer'
+      # - 'ApplyCommonLinting'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'checkout'
+        uses: 'actions/checkout@v2'
+
+      - name: 'build and tag image'
+        id: 'build-tag-image'
+        run: |
+          docker build --file ami/Dockerfile --tag ${IMAGE_NAME}-packer:${LOCAL_SCAN_TAG} .
+
+      - name: 'Download lacework'
+        run: |
+          curl -L --output ./lw_scanner https://github.com/lacework/lacework-vulnerability-scanner/releases/latest/download/lw-scanner-linux-amd64
+          sudo chmod a+x ./lw_scanner
+
+      - name: 'Scan the image'
+        run: |
+          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${IMAGE_NAME}-packer:${LOCAL_SCAN_TAG}
+
+  push_docker_image_packer:
+    name: 'push-image-packer'
+    needs:
+      - 'hadolint_packer'
+      # - 'ApplyCommonLinting'
+      - 'build_scan_docker_image_packer'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'checkout'
+        uses: 'actions/checkout@v2'
+
+      - name: 'configure aws credentials'
+        uses: 'aws-actions/configure-aws-credentials@v1.5.5'
+        with:
+          aws-access-key-id: '${{ secrets.DEP_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DEP_SECRET_KEY }}'
+          aws-region: '${{ secrets.DEP_AWS_REGION }}'
+
+      - name: 'Setup QEMU'
+        uses: 'docker/setup-qemu-action@v1'
+
+      - name: 'Setup Docker Buildx'
+        id: 'buildx'
+        uses: 'docker/setup-buildx-action@v1'
+        with:
+          install: true
+
+      - name: 'Login to Amazon ECR'
+        id: 'login-ecr'
+        uses: 'aws-actions/amazon-ecr-login@v1'
+
+      - name: 'tag Image'
+        id: 'vars'
+        run: 'echo ::set-output name=TAG::$(cat VERSION.txt)'
+
+      - name: 'build-push-image'
+        if: "github.event_name == 'push'"
+        id: 'push-image-ecr'
+        env:
+          ECR_REGISTRY: '${{ steps.login-ecr.outputs.registry }}'
+          ECR_REPOSITORY: 'cloud/actions-runner-packer'
+        run: |
+          export IMAGE_TAG="${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ steps.vars.outputs.TAG }}"
+          docker build -f ami/Dockerfile --push --no-cache --platform linux/amd64 -t ${IMAGE_TAG} -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest .
+          echo "::set-output name=IMAGE_TAG::${IMAGE_TAG}"
+
+  build_scan_docker_image:
+    name: 'build-scan-docker-image'
+    needs:
+      - 'hadolint'
+      # - 'ApplyCommonLinting'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'checkout'
+        uses: 'actions/checkout@v2'
+
+      - name: 'build and tag image'
+        id: 'build-tag-image'
+        run: |
+          docker build --file Dockerfile --tag ${IMAGE_NAME}:${LOCAL_SCAN_TAG} .
+
+      - name: 'Download lacework'
+        run: |
+          curl -L --output ./lw_scanner https://github.com/lacework/lacework-vulnerability-scanner/releases/latest/download/lw-scanner-linux-amd64
+          sudo chmod a+x ./lw_scanner
+
+      - name: 'Scan the image'
+        run: |
+          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${IMAGE_NAME}:${LOCAL_SCAN_TAG}
+
+      - name: 'configure aws credentials for inspector'
+        uses: 'aws-actions/configure-aws-credentials@v1.5.5'
+        with:
+          aws-access-key-id: '${{ secrets.DEP_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DEP_SECRET_KEY }}'
+          aws-region: '${{ secrets.DEP_AWS_REGION }}'
+
+      - name: 'Inspector scan'
+        id: 'inspector'
+        uses: 'aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1'
+        with:
+          artifact_type: 'container'
+          artifact_path: '${{ env.IMAGE_NAME }}:${{ env.LOCAL_SCAN_TAG }}'
+          display_vulnerability_findings: 'enabled'
+
+      - name: 'Upload Inspector artifacts'
+        if: 'always()'
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: 'inspector-results-actions-runner'
+          path: |
+            ${{ steps.inspector.outputs.inspector_scan_results }}
+            ${{ steps.inspector.outputs.inspector_scan_results_csv }}
+            ${{ steps.inspector.outputs.inspector_scan_results_markdown }}
+
+      - name: 'Comment Inspector findings on PR'
+        if: 'github.event_name == ''pull_request'' && always()'
+        uses: 'actions/github-script@v7'
+        env:
+          REPORT_PATH: '${{ steps.inspector.outputs.inspector_scan_results_markdown }}'
+          THRESHOLD_EXCEEDED: '${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}'
+          COMMENT_TITLE: '## Amazon Inspector results'
+          NORMAL_ARTIFACT_LABEL: '${{ env.IMAGE_NAME }}:${{ env.LOCAL_SCAN_TAG }}'
+          PACKER_ARTIFACT_LABEL: '${{ env.IMAGE_NAME }}-packer:${{ env.LOCAL_SCAN_TAG }}'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const fs = require('fs');
+
+            const reportPath = process.env.REPORT_PATH;
+            const thresholdExceeded = process.env.THRESHOLD_EXCEEDED === '1';
+            const commentTitle = process.env.COMMENT_TITLE;
+            const normalArtifactLabel = process.env.NORMAL_ARTIFACT_LABEL;
+            const packerArtifactLabel = process.env.PACKER_ARTIFACT_LABEL;
+
+            function summarizeReport(raw) {
+              const cveRegex = /CVE-\d{4}-\d+/g;
+              const matches = [...raw.matchAll(cveRegex)];
+              if (!matches.length) {
+                return raw;
+              }
+
+              const severityCounts = {
+                critical: 0,
+                high: 0,
+                medium: 0,
+                low: 0,
+                other: 0
+              };
+
+              const rows = [];
+              for (let i = 0; i < matches.length; i++) {
+                const start = matches[i].index;
+                const end = i + 1 < matches.length ? matches[i + 1].index : raw.length;
+                const section = raw.slice(start, end);
+
+                const cve = matches[i][0];
+                const sevMatch = section.match(/\b(critical|high|medium|low)\b/i);
+                const severity = sevMatch ? sevMatch[1].toLowerCase() : 'other';
+                severityCounts[severity] += 1;
+
+                const pkgMatches = [...section.matchAll(/pkg:[^\s<)]+/g)].map((m) => m[0]);
+                const uniquePkgs = [...new Set(pkgMatches)];
+
+                const fixedMatch = section.match(/\b\d+(?:\.\d+)+(?:[-+._a-zA-Z0-9]*)?\b/g);
+                const fixVersion = fixedMatch && fixedMatch.length ? fixedMatch[fixedMatch.length - 1] : 'N/A';
+
+                const sevEmoji = {
+                  critical: '🔴',
+                  high: '🟠',
+                  medium: '🟡',
+                  low: '🔵',
+                  other: '⚪'
+                }[severity] || '⚪';
+
+                rows.push(
+                  `| ${cve} | ${sevEmoji} ${severity} | ${uniquePkgs.length} | ${fixVersion} | ${uniquePkgs.slice(0, 2).map((p) => '`' + p + '`').join(', ')}${uniquePkgs.length > 2 ? ` (+${uniquePkgs.length - 2} more)` : ''} |`
+                );
+              }
+
+              const summaryTable = [
+                '### Vulnerability counts by severity',
+                '',
+                '| Severity | Count |',
+                '| --- | ---: |',
+                `| 🔴 Critical | ${severityCounts.critical} |`,
+                `| 🟠 High | ${severityCounts.high} |`,
+                `| 🟡 Medium | ${severityCounts.medium} |`,
+                `| 🔵 Low | ${severityCounts.low} |`,
+                `| ⚪ Other | ${severityCounts.other} |`,
+                ''
+              ].join('\n');
+
+              const findingsTable = [
+                '### Findings',
+                '',
+                '| CVE | Severity | Packages | Fix Version | Sample Packages |',
+                '| --- | --- | ---: | --- | --- |',
+                ...rows,
+                ''
+              ].join('\n');
+
+              return `${summaryTable}\n${findingsTable}`;
+            }
+
+            let report = 'No Inspector markdown report was generated.';
+            if (reportPath && fs.existsSync(reportPath)) {
+              const raw = fs.readFileSync(reportPath, 'utf8');
+              report = summarizeReport(raw);
+            }
+
+            const body = [
+              commentTitle,
+              '',
+              thresholdExceeded
+                ? ':warning: Vulnerabilities detected. Review Inspector findings before merging.'
+                : ':white_check_mark: No findings crossed the configured threshold.',
+              '',
+              '## actions-runner',
+              '',
+              `Artifact: \`${normalArtifactLabel}\``,
+              '',
+              '<details><summary>Show findings</summary>',
+              '',
+              report,
+              '',
+              '</details>',
+              '',
+              '## actions-runner-packer',
+              '',
+              `Artifact: \`${packerArtifactLabel}\``,
+              '',
+              'Packer image is also scanned in CI and will fail independently if findings are present.',
+              '',
+              'Full raw reports are available in workflow artifacts:',
+              '- `inspector-results-actions-runner`',
+              '- `inspector-results-actions-runner-packer`'
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number,
+              per_page: 100
+            });
+
+            const existing = comments.data.find((c) =>
+              c.user.type === 'Bot' && c.body.includes(commentTitle)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body
+              });
+            }
+
+      - name: 'Report Inspector findings'
+        if: 'always()'
+        run: |
+          if [ "${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}" = "1" ]; then
+            echo "::warning::Inspector found vulnerabilities above threshold. Review findings in the PR comment before merging."
+          fi
+
+  push_docker_image:
+    name: 'push-image'
+    needs:
+      - 'hadolint'
+      # - 'ApplyCommonLinting'
+      - 'build_scan_docker_image'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'checkout'
+        uses: 'actions/checkout@v2'
+
+      - name: 'configure aws credentials'
+        uses: 'aws-actions/configure-aws-credentials@v1.5.5'
+        with:
+          aws-access-key-id: '${{ secrets.DEP_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DEP_SECRET_KEY }}'
+          aws-region: '${{ secrets.DEP_AWS_REGION }}'
+
+      - name: 'Setup QEMU'
+        uses: 'docker/setup-qemu-action@v1'
+
+      - name: 'Setup Docker Buildx'
+        id: 'buildx'
+        uses: 'docker/setup-buildx-action@v1'
+        with:
+          install: true
+
+      - name: 'Login to Amazon ECR'
+        id: 'login-ecr'
+        uses: 'aws-actions/amazon-ecr-login@v1'
+
+      - name: 'tag Image'
+        id: 'vars'
+        run: 'echo ::set-output name=TAG::$(cat VERSION.txt)'
+
+      - name: 'build-push-image'
+        if: "github.event_name == 'push'"
+        id: 'push-image-ecr'
+        env:
+          ECR_REGISTRY: '${{ steps.login-ecr.outputs.registry }}'
+          ECR_REPOSITORY: 'cloud/actions-runner'
+        run: |
+          export IMAGE_TAG="${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ steps.vars.outputs.TAG }}"
+          docker build -f Dockerfile --push --no-cache --platform linux/amd64,linux/arm64,linux/arm64/v8 -t ${IMAGE_TAG} -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest .
+          echo "::set-output name=IMAGE_TAG::${IMAGE_TAG}"
+
+  hadolint_packer:
+    name: 'hadolint-packer'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Clone App Repo'
+        uses: 'actions/checkout@v2'
+
+      - name: 'Clone Github-Actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.NOVU_CI_TOKEN }}'
+          path: './github-actions'
+          ref: 'main'
+
+      - name: 'Run Hadolint'
+        uses: './github-actions/hadolint'
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          HADOLINT_ACTION_DOCKERFILE_FOLDER: "./ami"
+
+  hadolint:
+    name: 'hadolint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Clone App Repo'
+        uses: 'actions/checkout@v2'
+
+      - name: 'Clone Github-Actions repo'
+        uses: 'actions/checkout@v2'
+        with:
+          repository: 'icariohealth/github-actions'
+          token: '${{ secrets.NOVU_CI_TOKEN }}'
+          path: './github-actions'
+          ref: 'main'
+
+      - name: 'Run Hadolint'
+        uses: './github-actions/hadolint'
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          HADOLINT_ACTION_DOCKERFILE_FOLDER: "./"

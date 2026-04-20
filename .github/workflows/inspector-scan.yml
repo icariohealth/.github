@@ -25,7 +25,7 @@ on:
         description: 'Name for the uploaded Inspector result artifacts'
         required: false
         type: string
-        default: 'inspector-results'
+        default: 'inspector-scan-results'
     secrets:
       DEP_ACCESS_KEY:
         required: true

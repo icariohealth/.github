@@ -1,24 +1,26 @@
----
-name: 'ci'
+name: 'Docker ci'
+
 on:
-  push:
-    branches:
-      - 'main'
-  pull_request:
-    branches:
-      - '*'
-    paths-ignore:
-      - '**.md'
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      local_scan_tag:
+        required: true
+        type: string
+      dockerfile_path:
+        required: false
+        type: string
+        default: 'Dockerfile'
+      ecr_repository:
+        required: true
+        type: string
 
 permissions:
   contents: 'read'
   issues: 'write'
   pull-requests: 'write'
-
-env:
-  IMAGE_NAME: 'actions-runner'
-  LOCAL_SCAN_TAG: 'ci-scan'
 
 jobs:
   ApplyCommonLinting:
@@ -30,16 +32,15 @@ jobs:
     name: 'build-scan-docker-image-packer'
     needs:
       - 'hadolint_packer'
-      # - 'ApplyCommonLinting'
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'checkout'
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v4'
 
       - name: 'build and tag image'
         id: 'build-tag-image'
         run: |
-          docker build --file ami/Dockerfile --tag ${IMAGE_NAME}-packer:${LOCAL_SCAN_TAG} .
+          docker build --file ami/Dockerfile --tag ${{ inputs.image_name }}-packer:${{ inputs.local_scan_tag }} .
 
       - name: 'Download lacework'
         run: |
@@ -48,7 +49,7 @@ jobs:
 
       - name: 'Scan the image'
         run: |
-          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${IMAGE_NAME}-packer:${LOCAL_SCAN_TAG}
+          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${{ inputs.image_name }}-packer:${{ inputs.local_scan_tag }}
 
   push_docker_image_packer:
     name: 'push-image-packer'
@@ -59,8 +60,8 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'checkout'
-        uses: 'actions/checkout@v2'
-
+        uses: 'actions/checkout@v4'
+      
       - name: 'configure aws credentials'
         uses: 'aws-actions/configure-aws-credentials@v1.5.5'
         with:
@@ -77,13 +78,13 @@ jobs:
         with:
           install: true
 
-      - name: 'Login to Amazon ECR'
-        id: 'login-ecr'
-        uses: 'aws-actions/amazon-ecr-login@v1'
-
       - name: 'tag Image'
         id: 'vars'
         run: 'echo ::set-output name=TAG::$(cat VERSION.txt)'
+
+      - name: 'Login to Amazon ECR'
+        id: 'login-ecr'
+        uses: 'aws-actions/amazon-ecr-login@v1'
 
       - name: 'build-push-image'
         if: "github.event_name == 'push'"
@@ -104,12 +105,12 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'checkout'
-        uses: 'actions/checkout@v2'
-
+        uses: 'actions/checkout@v4'
+      
       - name: 'build and tag image'
         id: 'build-tag-image'
         run: |
-          docker build --file Dockerfile --tag ${IMAGE_NAME}:${LOCAL_SCAN_TAG} .
+          docker build --file Dockerfile --tag ${{ inputs.image_name }}:${{ inputs.local_scan_tag }} .
 
       - name: 'Download lacework'
         run: |
@@ -118,7 +119,7 @@ jobs:
 
       - name: 'Scan the image'
         run: |
-          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${IMAGE_NAME}:${LOCAL_SCAN_TAG}
+          ./lw_scanner image evaluate --access-token ${{secrets.LW_ACCESS_TOKEN}} --account-name "icario" --pretty -w ${{ inputs.image_name }}:${{ inputs.local_scan_tag }}
 
       - name: 'configure aws credentials for inspector'
         uses: 'aws-actions/configure-aws-credentials@v1.5.5'
@@ -132,7 +133,7 @@ jobs:
         uses: 'aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1'
         with:
           artifact_type: 'container'
-          artifact_path: '${{ env.IMAGE_NAME }}:${{ env.LOCAL_SCAN_TAG }}'
+          artifact_path: '${{ inputs.image_name }}:${{ inputs.local_scan_tag }}'
           display_vulnerability_findings: 'enabled'
 
       - name: 'Upload Inspector artifacts'
@@ -152,8 +153,8 @@ jobs:
           REPORT_PATH: '${{ steps.inspector.outputs.inspector_scan_results_markdown }}'
           THRESHOLD_EXCEEDED: '${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}'
           COMMENT_TITLE: '## Amazon Inspector results'
-          NORMAL_ARTIFACT_LABEL: '${{ env.IMAGE_NAME }}:${{ env.LOCAL_SCAN_TAG }}'
-          PACKER_ARTIFACT_LABEL: '${{ env.IMAGE_NAME }}-packer:${{ env.LOCAL_SCAN_TAG }}'
+          NORMAL_ARTIFACT_LABEL: '${{ inputs.image_name }}:${{ inputs.local_scan_tag }}'
+          PACKER_ARTIFACT_LABEL: '${{ inputs.image_name }}-packer:${{ inputs.local_scan_tag }}'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
@@ -305,7 +306,6 @@ jobs:
           if [ "${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}" = "1" ]; then
             echo "::warning::Inspector found vulnerabilities above threshold. Review findings in the PR comment before merging."
           fi
-
   push_docker_image:
     name: 'push-image'
     needs:
@@ -315,7 +315,7 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'checkout'
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v4'
 
       - name: 'configure aws credentials'
         uses: 'aws-actions/configure-aws-credentials@v1.5.5'
@@ -351,45 +351,3 @@ jobs:
           export IMAGE_TAG="${ECR_REGISTRY}/${ECR_REPOSITORY}:${{ steps.vars.outputs.TAG }}"
           docker build -f Dockerfile --push --no-cache --platform linux/amd64,linux/arm64,linux/arm64/v8 -t ${IMAGE_TAG} -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:latest .
           echo "::set-output name=IMAGE_TAG::${IMAGE_TAG}"
-
-  hadolint_packer:
-    name: 'hadolint-packer'
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: 'Clone App Repo'
-        uses: 'actions/checkout@v2'
-
-      - name: 'Clone Github-Actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.NOVU_CI_TOKEN }}'
-          path: './github-actions'
-          ref: 'main'
-
-      - name: 'Run Hadolint'
-        uses: './github-actions/hadolint'
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          HADOLINT_ACTION_DOCKERFILE_FOLDER: "./ami"
-
-  hadolint:
-    name: 'hadolint'
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: 'Clone App Repo'
-        uses: 'actions/checkout@v2'
-
-      - name: 'Clone Github-Actions repo'
-        uses: 'actions/checkout@v2'
-        with:
-          repository: 'icariohealth/github-actions'
-          token: '${{ secrets.NOVU_CI_TOKEN }}'
-          path: './github-actions'
-          ref: 'main'
-
-      - name: 'Run Hadolint'
-        uses: './github-actions/hadolint'
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          HADOLINT_ACTION_DOCKERFILE_FOLDER: "./"

@@ -3,6 +3,10 @@ name: 'AWS Inspector Scan'
 on:
   workflow_call:
     inputs:
+      ECR_REPOSITORY:
+        required: false
+        type: string
+        default: 'app/dhp'
       image_name:
         description: 'Docker image name to build and scan'
         required: true
@@ -16,6 +20,10 @@ on:
         required: false
         type: string
         default: 'Dockerfile'
+      build_args:
+        required: false
+        type: string
+        default: ''
       build_context:
         description: 'Docker build context path'
         required: false
@@ -60,14 +68,28 @@ jobs:
           aws-secret-access-key: '${{ secrets.DEP_SECRET_KEY }}'
           aws-region: '${{ secrets.DEP_AWS_REGION }}'
 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: 'build and tag image'
         id: 'build-tag-image'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          extra_args: ${{ inputs.build_args }}
         run: |
-          docker build \
-            --file ${{ inputs.dockerfile_path }} \
-            --tag ${{ inputs.image_name }}:${{ inputs.local_scan_tag }} \
-            ${{ inputs.build_context }}
-
+          DOCKER_CMD=(docker build)
+          DOCKER_CMD+=(-t "$ECR_REGISTRY/${{ inputs.ECR_REPOSITORY }}:${{ inputs.image_name }}-${{ inputs.local_scan_tag }}")
+          IFS=$',\n'
+          for arg in $extra_args; do
+            # Strip spaces
+            arg=$(echo "$arg" | xargs)
+            if [ -n "$arg" ]; then
+              DOCKER_CMD+=(--build-arg "$arg")
+            fi
+          done
+          DOCKER_CMD+=("${{ inputs.build_context }}")
+          "${DOCKER_CMD[@]}"
       - name: 'Inspector scan'
         id: 'inspector'
         uses: 'aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1'

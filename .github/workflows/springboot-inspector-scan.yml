@@ -41,6 +41,10 @@ on:
         required: true
       DEP_AWS_REGION:
         required: true
+      JFROG_USERNAME:
+        required: true
+      JFROG_PASSWORD:
+        required: true
 
 permissions:
   contents: 'read'
@@ -60,6 +64,15 @@ jobs:
         with:
           java-version: 21
           distribution: 'corretto'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        env:
+          JFROG_USERNAME: ${{ secrets.JFROG_USERNAME }}
+          JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+        run: ./gradlew build -x checkstyleIntegrationTest -x checkstyleMain -x checkstyleTest -x test -x integrationTest
 
       - name: 'configure aws credentials for inspector'
         uses: 'aws-actions/configure-aws-credentials@v1.5.5'

@@ -11,15 +11,15 @@ on:
         type: string
         required: false
         default: |
-          **/src/main/resources/db/migration/*.yml
-          **/src/main/resources/db/migration/*.yaml
-          **/src/main/resources/db/migration/*.xml
+          /src/main/resources/db/migration/*.yml
+          /src/main/resources/db/migration/*.yaml
+          /src/main/resources/db/migration/*.xml
       flyway_paths:
         type: string
         required: false
         default: |
-          **/src/main/resources/db/migration/*.sql
-          **/src/main/resources/db/migrations/*.sql
+          /src/main/resources/db/migration/*.sql
+          /src/main/resources/db/migrations/*.sql
       dp_team_name:
         type: string
         required: false

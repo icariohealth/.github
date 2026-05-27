@@ -1,5 +1,5 @@
 ---
-name: Liquibase PR Schema Check
+name: Liquibase/Flyway PR Schema Check
 
 on:
   workflow_call:

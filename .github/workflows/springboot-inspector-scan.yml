@@ -11,10 +11,6 @@ on:
         description: 'Docker image name to build and scan'
         required: true
         type: string
-      local_scan_tag:
-        description: 'Tag to apply to the locally built image for scanning'
-        required: true
-        type: string
       dockerfile_path:
         description: 'Relative path to the Dockerfile'
         required: false
@@ -74,7 +70,7 @@ jobs:
           JFROG_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
         run: ./gradlew build -x checkstyleIntegrationTest -x checkstyleMain -x checkstyleTest -x test -x integrationTest
 
-      - name: 'configure aws credentials for inspector'
+      - name: 'configure aws credentials'
         uses: 'aws-actions/configure-aws-credentials@v1.5.5'
         with:
           aws-access-key-id: '${{ secrets.DEP_ACCESS_KEY }}'
@@ -92,7 +88,7 @@ jobs:
           extra_args: ${{ inputs.build_args }}
         run: |
           DOCKER_CMD=(docker build)
-          DOCKER_CMD+=(-t "$ECR_REGISTRY/${{ inputs.ECR_REPOSITORY }}:${{ inputs.image_name }}-${{ inputs.local_scan_tag }}")
+          DOCKER_CMD+=(-t "${{ inputs.image_name }}:${{ github.sha }}")
           IFS=$',\n'
           for arg in $extra_args; do
             # Strip spaces
@@ -108,7 +104,7 @@ jobs:
         uses: 'aws-actions/vulnerability-scan-github-action-for-amazon-inspector@v1'
         with:
           artifact_type: 'container'
-          artifact_path: '${{ inputs.image_name }}:${{ inputs.local_scan_tag }}'
+          artifact_path: '${{ inputs.image_name }}:${{ github.sha }}'
           display_vulnerability_findings: 'enabled'
 
       - name: 'Upload Inspector artifacts'
@@ -128,7 +124,7 @@ jobs:
           REPORT_PATH: '${{ steps.inspector.outputs.inspector_scan_results_markdown }}'
           THRESHOLD_EXCEEDED: '${{ steps.inspector.outputs.vulnerability_threshold_exceeded }}'
           COMMENT_TITLE: '## Amazon Inspector results'
-          ARTIFACT_LABEL: '${{ inputs.image_name }}:${{ inputs.local_scan_tag }}'
+          ARTIFACT_LABEL: '${{ inputs.image_name }}:${{ github.sha }}'
           ARTIFACT_NAME: '${{ inputs.artifact_name }}'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'

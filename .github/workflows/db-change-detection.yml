@@ -7,6 +7,14 @@ on:
       service_name:
         type: string
         required: true
+      base_ref:
+        type: string
+        required: true
+        description: "Base branch of the PR. Pass github.base_ref from the caller."
+      head_sha:
+        type: string
+        required: true
+        description: "HEAD SHA of the PR. Pass github.event.pull_request.head.sha from the caller."
       dp_team_name:
         type: string
         required: false
@@ -36,8 +44,9 @@ jobs:
         run: |
           set -eo pipefail
 
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          git fetch origin "${{ inputs.base_ref }}" --depth=50
+          BASE_SHA=$(git merge-base HEAD "origin/${{ inputs.base_ref }}")
+          HEAD_SHA="${{ inputs.head_sha }}"
 
           echo "Base SHA: $BASE_SHA"
           echo "Head SHA: $HEAD_SHA"

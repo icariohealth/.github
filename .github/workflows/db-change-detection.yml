@@ -7,19 +7,6 @@ on:
       service_name:
         type: string
         required: true
-      liquibase_paths:
-        type: string
-        required: false
-        default: |
-          /src/main/resources/db/migration/*.yml
-          /src/main/resources/db/migration/*.yaml
-          /src/main/resources/db/migration/*.xml
-      flyway_paths:
-        type: string
-        required: false
-        default: |
-          /src/main/resources/db/migration/*.sql
-          /src/main/resources/db/migrations/*.sql
       dp_team_name:
         type: string
         required: false
@@ -50,9 +37,13 @@ jobs:
           list-files: shell
           filters: |
             liquibase:
-              - ${{ inputs.liquibase_paths }}
+              - '**/src/main/resources/db/migration/*.yml'
+              - '**/src/main/resources/db/migration/*.yaml'
+              - '**/src/main/resources/db/migration/*.xml'
             flyway:
-              - ${{ inputs.flyway_paths }}
+              - '**/src/main/resources/db/migration/*.sql'
+              - '**/src/main/resources/db/migrations/*.sql'
+              - '**/data-index/src/main/resources/db/migration/*.sql'
 
       - name: Exit when no Liquibase/Flyway changes
         if: steps.filter.outputs.liquibase != 'true' && steps.filter.outputs.flyway != 'true'

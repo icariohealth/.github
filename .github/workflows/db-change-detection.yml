@@ -24,7 +24,7 @@ on:
         required: false
         default: Data Platform
     secrets:
-      TEAMS_WEBHOOK_URL:
+      AIVELLA_TEAMS_WEBHOOK_URL:
         required: true
 
 permissions:

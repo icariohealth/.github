@@ -7,6 +7,10 @@ on:
       service_name:
         type: string
         required: true
+      repository:
+        type: string
+        required: false
+        default: ${{ github.repository }}
       base_ref:
         type: string
         required: true
@@ -53,11 +57,8 @@ jobs:
 
           CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
 
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
           LIQUIBASE_FILES=$(echo "$CHANGED_FILES" | grep -E \
-            'src\/main\/resources\/db\/migration\/.*\.(yml|yaml|xml)$' || true)
+            'src\/main\/resources\/db\/migration\/.*\.(yml|yaml)$' || true)
 
           FLYWAY_FILES=$(echo "$CHANGED_FILES" | grep -E \
             'src\/main\/resources\/db\/migrations?\/.*\.sql$|data-index\/src\/main\/resources\/db\/migration\/.*\.sql$' || true)
@@ -91,7 +92,7 @@ jobs:
         run: |
           echo "No Liquibase or Flyway changelog file changes detected."
           exit 0
-      - name: Show changed Liquibase/Flyway files
+      - name: Changed Liquibase/Flyway files
         if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         run: |
           echo "Liquibase files changed:"
@@ -99,3 +100,61 @@ jobs:
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
 
+      - name: Notify Data Platform Team via Teams Channel
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        env:
+          AIVELLA_TEAMS_WEBHOOK_URL: ${{ secrets.AIVELLA_TEAMS_WEBHOOK_URL || '' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$AIVELLA_TEAMS_WEBHOOK_URL" ]; then
+            echo "Sending notification to Aivella Database Detection Testing channel..."
+            SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+            curl -X POST "$AIVELLA_TEAMS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Liquibase/Flyway schema change detected in '"${{ inputs.service_name }}"'",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Repository:",
+                              "value": "${{ inputs.repository }}"
+                            },
+                            {
+                              "title": "Changed Files:",
+                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}"
+                            },
+                            {
+                              "title": "PR link:",
+                              "value": "'"$GITHUB_REPOSITORY"'#'"$SHORT_SHA"'"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }' || true
+          else
+            echo "Webhook URL not configured, skipping notification."
+          fi

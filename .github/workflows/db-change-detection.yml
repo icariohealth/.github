@@ -57,10 +57,10 @@ jobs:
           echo "$CHANGED_FILES"
 
           LIQUIBASE_FILES=$(echo "$CHANGED_FILES" | grep -E \
-            'src/main/resources/db/migration/.*\.(yml|yaml|xml)$' || true)
+            'src\/main\/resources\/db\/migration\/.*\.(yml|yaml|xml)$' || true)
 
           FLYWAY_FILES=$(echo "$CHANGED_FILES" | grep -E \
-            'src/main/resources/db/migrations?/.*\.sql$|data-index/src/main/resources/db/migration/.*\.sql$' || true)
+            'src\/main\/resources\/db\/migrations?\/.*\.sql$|data-index\/src\/main\/resources\/db\/migration\/.*\.sql$' || true)
 
           if [ -n "$LIQUIBASE_FILES" ]; then
             echo "liquibase=true" >> "$GITHUB_OUTPUT"

@@ -91,3 +91,11 @@ jobs:
         run: |
           echo "No Liquibase or Flyway changelog file changes detected."
           exit 0
+      - name: Show changed Liquibase/Flyway files
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        run: |
+          echo "Liquibase files changed:"
+          echo "${{ steps.filter.outputs.liquibase_files }}"
+          echo "Flyway files changed:"
+          echo "${{ steps.filter.outputs.flyway_files }}"
+

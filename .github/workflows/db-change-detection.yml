@@ -19,6 +19,10 @@ on:
         type: string
         required: true
         description: "HEAD SHA of the PR. Pass github.event.pull_request.head.sha from the caller."
+      pr_url:
+        type: string
+        required: true
+        description: "URL of the PR. Pass github.event.pull_request.html_url from the caller."
       dp_team_name:
         type: string
         required: false
@@ -141,12 +145,12 @@ jobs:
                               "value": "${{ inputs.repository }}"
                             },
                             {
-                              "title": "Changed Files:",
-                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}"
+                              "title": "PR link:",
+                              "value": "${{ inputs.pr_url }}"
                             },
                             {
-                              "title": "PR link:",
-                              "value": "'"$GITHUB_REPOSITORY"'#'"$SHORT_SHA"'"
+                              "title": "Changed Files:",
+                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}"
                             }
                           ]
                         }

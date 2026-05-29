@@ -34,6 +34,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  models: read
 
 jobs:
   detect-and-notify:
@@ -103,6 +104,16 @@ jobs:
           echo "${{ steps.filter.outputs.liquibase_files }}"
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
+
+      - name: Test Local Action
+        id: inference
+        uses: actions/ai-inference@v1
+        with:
+          prompt: 'Hello!'
+
+      - name: Print Output
+        id: output
+        run: echo "${{ steps.inference.outputs.response }}"
 
       - name: Notify Data Platform Team via Teams Channel
         if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'

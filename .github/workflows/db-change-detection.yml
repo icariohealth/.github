@@ -117,10 +117,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          response=$(curl -X POST "https://models.github.ai/inference/chat/completions" \
+      - name: Test GitHub Models API
+        id: test-models
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          response=$(curl -s -X POST "https://models.github.ai/inference/chat/completions" \
+          -H "Accept: application/vnd.github+json" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -H "X-GitHub-Api-Version: 2026-03-10" \
           -d '{
+              "model": "openai/gpt-4.1",
               "messages": [
                   {
                       "role": "system",
@@ -132,8 +140,7 @@ jobs:
                   }
               ],
               "temperature": 1.0,
-              "top_p": 1.0,
-              "model": "openai/gpt-4.1"
+              "top_p": 1.0
           }')
           echo "$response"
           if echo "$response" | grep -q "Paris"; then

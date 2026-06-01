@@ -117,11 +117,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-      - name: Test GitHub Models API
-        id: test-models
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
           response=$(curl -s -X POST "https://models.github.ai/inference/chat/completions" \
           -H "Accept: application/vnd.github+json" \
           -H "Content-Type: application/json" \

@@ -104,7 +104,11 @@ jobs:
           echo "${{ steps.filter.outputs.liquibase_files }}"
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
-
+      - name: Dump permissions
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
       - name: Test Local Action
         id: inference
         uses: actions/ai-inference@v1

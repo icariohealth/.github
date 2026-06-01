@@ -117,7 +117,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          response=$(curl -s -X POST "https://models.github.ai/inference/chat/completions" \
+          http_code=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "https://models.github.ai/inference/chat/completions" \
           -H "Accept: application/vnd.github+json" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
@@ -137,11 +137,17 @@ jobs:
               "temperature": 1.0,
               "top_p": 1.0
           }')
-          echo "$response"
+          response=$(cat response_body.txt)
+          echo "HTTP status code: $http_code"
+          echo "Response body: $response"
+          if [ "$http_code" -ne 200 ]; then
+            echo "Error: API returned HTTP $http_code"
+            exit 1
+          fi
           if echo "$response" | grep -q "Paris"; then
             echo "Models API is working correctly."
           else
-            echo "Unexpected response from Models API: $response"
+            echo "Unexpected response from Models API (HTTP $http_code): $response"
             exit 1
           fi
 

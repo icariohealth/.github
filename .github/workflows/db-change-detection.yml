@@ -109,6 +109,33 @@ jobs:
           echo "Repository: ${{ github.repository }}"
           echo "Actor: ${{ github.actor }}"
           echo "Event: ${{ github.event_name }}"
+          echo "Permissions:"
+          echo "Contents: ${{ permissions.contents }}"
+
+      - name: Test GitHub Models API
+        id: test-models
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -X POST "https://models.github.ai/inference/chat/completions" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $GITHUB_TOKEN" \
+          -d '{
+              "messages": [
+                  {
+                      "role": "system",
+                      "content": "You are a helpful assistant."
+                  },
+                  {
+                      "role": "user",
+                      "content": "What is the capital of France?"
+                  }
+              ],
+              "temperature": 1.0,
+              "top_p": 1.0,
+              "model": "openai/gpt-4.1"
+          }'
+
       - name: Test Local Action
         id: inference
         uses: actions/ai-inference@v1

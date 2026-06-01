@@ -117,7 +117,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          curl -X POST "https://models.github.ai/inference/chat/completions" \
+          response=$(curl -X POST "https://models.github.ai/inference/chat/completions" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $GITHUB_TOKEN" \
           -d '{
@@ -134,7 +134,14 @@ jobs:
               "temperature": 1.0,
               "top_p": 1.0,
               "model": "openai/gpt-4.1"
-          }'
+          }')
+          echo "$response"
+          if echo "$response" | grep -q "Paris"; then
+            echo "Models API is working correctly."
+          else
+            echo "Unexpected response from Models API: $response"
+            exit 1
+          fi
 
       - name: Test Local Action
         id: inference

@@ -1,0 +1,164 @@
+---
+name: Liquibase/Flyway PR Schema Check
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        type: string
+        required: true
+      repository:
+        type: string
+        required: false
+        default: ${{ github.repository }}
+      base_ref:
+        type: string
+        required: true
+        description: "Base branch of the PR. Pass github.base_ref from the caller."
+      head_sha:
+        type: string
+        required: true
+        description: "HEAD SHA of the PR. Pass github.event.pull_request.head.sha from the caller."
+      pr_url:
+        type: string
+        required: true
+        description: "URL of the PR. Pass github.event.pull_request.html_url from the caller."
+      dp_team_name:
+        type: string
+        required: false
+        default: Data Platform
+    secrets:
+      SCHEMA_CHANGE_DETECTION_WEBHOOK_URL:
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  detect-and-notify:
+    name: Detect Liquibase/Flyway Changes and Notify DP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed Liquibase/Flyway files
+        id: filter
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          git fetch origin "${{ inputs.base_ref }}" --depth=50
+          BASE_SHA=$(git merge-base HEAD "origin/${{ inputs.base_ref }}")
+          HEAD_SHA="${{ inputs.head_sha }}"
+
+          echo "Base SHA: $BASE_SHA"
+          echo "Head SHA: $HEAD_SHA"
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+
+          LIQUIBASE_FILES=$(echo "$CHANGED_FILES" | grep -E \
+            'src\/main\/resources\/db\/migration\/.*\.(yml|yaml)$' || true)
+
+          FLYWAY_FILES=$(echo "$CHANGED_FILES" | grep -E \
+            'src\/main\/resources\/db\/migrations?\/.*\.sql$|data-index\/src\/main\/resources\/db\/migration\/.*\.sql$' || true)
+
+          if [ -n "$LIQUIBASE_FILES" ]; then
+            echo "liquibase=true" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "liquibase_files<<EOF"
+              echo "$LIQUIBASE_FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "liquibase=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$FLYWAY_FILES" ]; then
+            echo "flyway=true" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "flyway_files<<EOF"
+              echo "$FLYWAY_FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "flyway=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Exit when no Liquibase/Flyway changes
+        if: steps.filter.outputs.liquibase != 'true' && steps.filter.outputs.flyway != 'true'
+        run: |
+          echo "No Liquibase or Flyway changelog file changes detected."
+          exit 0
+      - name: Changed Liquibase/Flyway files
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        run: |
+          echo "Liquibase files changed:"
+          echo "${{ steps.filter.outputs.liquibase_files }}"
+          echo "Flyway files changed:"
+          echo "${{ steps.filter.outputs.flyway_files }}"
+
+      - name: Notify Data Platform Team via Teams Channel
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        env:
+          SCHEMA_CHANGE_DETECTION_WEBHOOK_URL: ${{ secrets.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL || '' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$SCHEMA_CHANGE_DETECTION_WEBHOOK_URL" ]; then
+            echo "Sending notification to Data Platform Team via Teams Channel..."
+            SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+            curl -X POST "$SCHEMA_CHANGE_DETECTION_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "type":"message",
+                "attachments":[
+                  {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "contentUrl": null,
+                    "content": {
+                      "type": "AdaptiveCard",
+                      "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                      "version": "1.5",
+                      "body": [
+                        {
+                          "type": "TextBlock",
+                          "text": "Liquibase/Flyway schema change detected in '"${{ inputs.service_name }}"'",
+                          "wrap": true,
+                          "style": "heading"
+                        },
+                        {
+                          "type": "FactSet",
+                          "facts": [
+                            {
+                              "title": "Service:",
+                              "value": "${{ inputs.service_name }}"
+                            },
+                            {
+                              "title": "Repository:",
+                              "value": "${{ inputs.repository }}"
+                            },
+                            {
+                              "title": "PR link:",
+                              "value": "${{ inputs.pr_url }}"
+                            },
+                            {
+                              "title": "Changed Files:",
+                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }' || true
+          else
+            echo "Webhook URL not configured, skipping notification."
+          fi

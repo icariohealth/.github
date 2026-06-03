@@ -28,13 +28,12 @@ on:
         required: false
         default: Data Platform
     secrets:
-      AIVELLA_TEAMS_WEBHOOK_URL:
+      SCHEMA_CHANGE_DETECTION_WEBHOOK_URL:
         required: true
 
 permissions:
   contents: read
   pull-requests: read
-  models: read
 
 jobs:
   detect-and-notify:
@@ -104,91 +103,18 @@ jobs:
           echo "${{ steps.filter.outputs.liquibase_files }}"
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
-      - name: Dump permissions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Repository: ${{ github.repository }}"
-          echo "Actor: ${{ github.actor }}"
-          echo "Event: ${{ github.event_name }}"
-          echo ""
-          echo "Token permissions (from API):"
-          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-               -H "Accept: application/vnd.github+json" \
-               https://api.github.com/repos/${{ github.repository }} \
-          | python3 -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          perms = data.get('permissions', {})
-          for k, v in perms.items():
-              print(f'  {k}: {v}')
-          "
-          echo ""
-          echo "Token scopes (from header):"
-          curl -sI -H "Authorization: Bearer $GITHUB_TOKEN" \
-               https://api.github.com \
-          | grep -i "x-oauth-scopes"
-
-      - name: Test GitHub Models API
-        id: test-models
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          http_code=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "https://models.github.ai/inference/chat/completions" \
-          -H "Accept: application/vnd.github+json" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer $GITHUB_TOKEN" \
-          -H "X-GitHub-Api-Version: 2026-03-10" \
-          -d '{
-              "model": "openai/gpt-4.1",
-              "messages": [
-                  {
-                      "role": "system",
-                      "content": "You are a helpful assistant."
-                  },
-                  {
-                      "role": "user",
-                      "content": "What is the capital of France?"
-                  }
-              ],
-              "temperature": 1.0,
-              "top_p": 1.0
-          }')
-          response=$(cat response_body.txt)
-          echo "HTTP status code: $http_code"
-          echo "Response body: $response"
-          if [ "$http_code" -ne 200 ]; then
-            echo "Error: API returned HTTP $http_code"
-            exit 1
-          fi
-          if echo "$response" | grep -q "Paris"; then
-            echo "Models API is working correctly."
-          else
-            echo "Unexpected response from Models API (HTTP $http_code): $response"
-            exit 1
-          fi
-
-      - name: Test Local Action
-        id: inference
-        uses: actions/ai-inference@v1
-        with:
-          prompt: 'Hello!'
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.inference.outputs.response }}"
 
       - name: Notify Data Platform Team via Teams Channel
         if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         env:
-          AIVELLA_TEAMS_WEBHOOK_URL: ${{ secrets.AIVELLA_TEAMS_WEBHOOK_URL || '' }}
+          SCHEMA_CHANGE_DETECTION_WEBHOOK_URL: ${{ secrets.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL || '' }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          if [ -n "$AIVELLA_TEAMS_WEBHOOK_URL" ]; then
-            echo "Sending notification to Aivella Database Detection Testing channel..."
+          if [ -n "$SCHEMA_CHANGE_DETECTION_WEBHOOK_URL" ]; then
+            echo "Sending notification to Data Platform Team via Teams Channel..."
             SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
-            curl -X POST "$AIVELLA_TEAMS_WEBHOOK_URL" \
+            curl -X POST "$SCHEMA_CHANGE_DETECTION_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d '{
               "type":"message",

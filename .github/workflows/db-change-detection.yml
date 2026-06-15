@@ -28,10 +28,15 @@ on:
         required: false
         default: Data Platform
     secrets:
-      SCHEMA_CHANGE_DETECTION_WEBHOOK_URL:
+      DEP_DHP_ACCESS_KEY:
+        required: true
+      DEP_DHP_SECRET_KEY:
+        required: true
+      DEP_DHP_DEV_ROLE_ARN:
         required: true
 
 permissions:
+  id-token: write
   contents: read
   pull-requests: read
 
@@ -104,10 +109,35 @@ jobs:
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-skip-session-tagging: true
+          aws-access-key-id: '${{ secrets.DEP_DHP_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DEP_DHP_SECRET_KEY }}'
+          role-to-assume: ${{ secrets.DEP_DHP_DEV_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Retrieve secrets from Secrets Manager
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            JSON_SECRET, dp
+          parse-json-secrets: false
+      
+      - name: Parse and export the necessary environment variables
+        id: export_variable_from_secret
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const jsonSecret = process.env.JSON_SECRET
+            const secret = JSON.parse(jsonSecret)
+            core.exportVariable('SCHEMA_CHANGE_DETECTION_WEBHOOK_URL', secret.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL)
+
       - name: Notify Data Platform Team via Teams Channel
         if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         env:
-          SCHEMA_CHANGE_DETECTION_WEBHOOK_URL: ${{ secrets.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL || '' }}
+          SCHEMA_CHANGE_DETECTION_WEBHOOK_URL: ${{ env.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
         run: |

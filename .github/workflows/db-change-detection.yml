@@ -28,11 +28,11 @@ on:
         required: false
         default: Data Platform
     secrets:
-      AWS_ACCESS_KEY_ID:
+      DEP_DHP_ACCESS_KEY:
         required: true
-      AWS_SECRET_ACCESS_KEY:
+      DEP_DHP_SECRET_KEY:
         required: true
-      ROLE_TO_ASSUME:
+      DEP_DHP_DEV_ROLE_ARN:
         required: true
 
 permissions:
@@ -113,9 +113,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-skip-session-tagging: true
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
+          aws-access-key-id: '${{ secrets.DEP_DHP_ACCESS_KEY }}'
+          aws-secret-access-key: '${{ secrets.DEP_DHP_SECRET_KEY }}'
+          role-to-assume: ${{ secrets.DEP_DHP_DEV_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Retrieve secrets from Secrets Manager

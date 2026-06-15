@@ -110,6 +110,7 @@ jobs:
           echo "${{ steps.filter.outputs.flyway_files }}"
 
       - name: Configure AWS credentials
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-skip-session-tagging: true
@@ -119,6 +120,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Retrieve secrets from Secrets Manager
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
@@ -126,6 +128,7 @@ jobs:
           parse-json-secrets: false
       
       - name: Parse and export the necessary environment variables
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
         id: export_variable_from_secret
         uses: actions/github-script@v6
         with:

@@ -52,6 +52,7 @@ permissions:
   contents: write
   pull-requests: write
   repository-projects: write
+  issues: write
 jobs:
   deploy:
     name: Deploy Argo Application

@@ -72,6 +72,9 @@ jobs:
           FLYWAY_FILES=$(echo "$CHANGED_FILES" | grep -E \
             'src\/main\/resources\/db\/migrations?\/.*\.sql$|data-index\/src\/main\/resources\/db\/migration\/.*\.sql$' || true)
 
+          SQL_FILES=$(echo "$CHANGED_FILES" | grep -E \
+            'src\/main\/resources\/db\/sql\/.*\.sql$|src\/main\/resources\/db\/data\/.*\.sql$' || true)
+
           if [ -n "$LIQUIBASE_FILES" ]; then
             echo "liquibase=true" >> "$GITHUB_OUTPUT"
 
@@ -96,21 +99,35 @@ jobs:
             echo "flyway=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Exit when no Liquibase/Flyway changes
-        if: steps.filter.outputs.liquibase != 'true' && steps.filter.outputs.flyway != 'true'
+          if [ -n "$SQL_FILES" ]; then
+            echo "sql=true" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "sql_files<<EOF"
+              echo "$SQL_FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "sql=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Exit when no Liquibase/Flyway/SQL changes
+        if: steps.filter.outputs.liquibase != 'true' && steps.filter.outputs.flyway != 'true' && steps.filter.outputs.sql != 'true'
         run: |
-          echo "No Liquibase or Flyway changelog file changes detected."
+          echo "No Liquibase, Flyway, or SQL changes detected."
           exit 0
-      - name: Changed Liquibase/Flyway files
-        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+      - name: Changed Liquibase/Flyway/SQL files
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         run: |
           echo "Liquibase files changed:"
           echo "${{ steps.filter.outputs.liquibase_files }}"
           echo "Flyway files changed:"
           echo "${{ steps.filter.outputs.flyway_files }}"
+          echo "SQL files changed:"
+          echo "${{ steps.filter.outputs.sql_files }}"
 
       - name: Configure AWS credentials
-        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-skip-session-tagging: true
@@ -120,7 +137,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Retrieve secrets from Secrets Manager
-        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
@@ -128,7 +145,7 @@ jobs:
           parse-json-secrets: false
       
       - name: Parse and export the necessary environment variables
-        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         id: export_variable_from_secret
         uses: actions/github-script@v6
         with:
@@ -138,7 +155,7 @@ jobs:
             core.exportVariable('SCHEMA_CHANGE_DETECTION_WEBHOOK_URL', secret.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL)
 
       - name: Notify Data Platform Team via Teams Channel
-        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true'
+        if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         env:
           SCHEMA_CHANGE_DETECTION_WEBHOOK_URL: ${{ env.SCHEMA_CHANGE_DETECTION_WEBHOOK_URL }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -162,7 +179,7 @@ jobs:
                       "body": [
                         {
                           "type": "TextBlock",
-                          "text": "Liquibase/Flyway schema change detected in '"${{ inputs.service_name }}"'",
+                          "text": "Liquibase/Flyway/SQL schema change detected in '"${{ inputs.service_name }}"'",
                           "wrap": true,
                           "style": "heading"
                         },
@@ -183,7 +200,7 @@ jobs:
                             },
                             {
                               "title": "Changed Files:",
-                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}"
+                              "value": "${{ steps.filter.outputs.liquibase_files }}\n${{ steps.filter.outputs.flyway_files }}\n${{ steps.filter.outputs.sql_files }}"
                             }
                           ]
                         }

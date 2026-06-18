@@ -42,7 +42,7 @@ permissions:
 
 jobs:
   detect-and-notify:
-    name: Detect Liquibase/Flyway Changes and Notify DP
+    name: Detect schema changes and notify DAPL
     runs-on: ubuntu-latest
 
     steps:
@@ -51,7 +51,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed Liquibase/Flyway files
+      - name: Detect changed files
         id: filter
         shell: bash
         run: |
@@ -111,12 +111,12 @@ jobs:
             echo "sql=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Exit when no Liquibase/Flyway/SQL changes
+      - name: Exit when no schema changes
         if: steps.filter.outputs.liquibase != 'true' && steps.filter.outputs.flyway != 'true' && steps.filter.outputs.sql != 'true'
         run: |
           echo "No Liquibase, Flyway, or SQL changes detected."
           exit 0
-      - name: Changed Liquibase/Flyway/SQL files
+      - name: Changed files
         if: steps.filter.outputs.liquibase == 'true' || steps.filter.outputs.flyway == 'true' || steps.filter.outputs.sql == 'true'
         run: |
           echo "Liquibase files changed:"
